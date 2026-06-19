@@ -1,6 +1,11 @@
 import "server-only";
 
+import { explainAnswer } from "@/lib/agent/explain-answer";
 import { generateSql } from "@/lib/agent/generate-sql";
+import {
+  verifyGrounding,
+  type GroundingVerification,
+} from "@/lib/agent/verify-grounding";
 import { retrieveGlossary, type GlossaryHit } from "@/lib/retrieval/glossary";
 import { executeReadOnlySql } from "@/lib/sql/executor";
 import { guardSql } from "@/lib/sql/guard";
@@ -25,6 +30,22 @@ export type GroundedQueryError = {
 };
 
 export type GroundedQueryResult = GroundedQuerySuccess | GroundedQueryError;
+
+export type ExplainedAnswerSuccess = GroundedQuerySuccess & {
+  answer: string;
+  grounding: GroundingVerification;
+};
+
+export type ExplainedAnswerError = GroundedQueryError & {
+  answer: string;
+  columns: string[];
+  rows: [];
+  grounding: GroundingVerification;
+};
+
+export type ExplainedAnswerResult =
+  | ExplainedAnswerSuccess
+  | ExplainedAnswerError;
 
 export async function answerQuery(
   question: string,
@@ -58,6 +79,39 @@ export async function answerQuery(
   }
 
   return executeGuardedQuestion(repairedSql, glossary);
+}
+
+export async function answerQuestionWithExplanation(
+  question: string,
+): Promise<ExplainedAnswerResult> {
+  const queryResult = await answerQuery(question);
+
+  if (!queryResult.ok) {
+    return {
+      ...queryResult,
+      answer: `I could not answer this from the database. ${queryResult.message}`,
+      columns: [],
+      rows: [],
+      grounding: {
+        grounded: true,
+        ungroundedNumbers: [],
+      },
+    };
+  }
+
+  const answer = await explainAnswer({
+    question,
+    executedSql: queryResult.executedSql,
+    columns: queryResult.columns,
+    rows: queryResult.rows,
+  });
+  const grounding = verifyGrounding(answer, queryResult.rows);
+
+  return {
+    ...queryResult,
+    answer,
+    grounding,
+  };
 }
 
 async function executeGuardedQuestion(

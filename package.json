@@ -11,7 +11,7 @@
     "etl": "tsx --env-file=.env.local scripts/etl.ts",
     "etl:verify": "tsx --env-file=.env.local scripts/etl.ts --verify-idempotency",
     "etl:competitions": "tsx --env-file=.env.local scripts/etl.ts --list-competitions",
-    "test": "node --conditions react-server --env-file=.env.local --test --import tsx lib/sql/__tests__/guard.test.ts lib/sql/__tests__/executor.test.ts lib/retrieval/__tests__/glossary.test.ts",
+    "test": "node --conditions react-server --env-file=.env.local --test --import tsx lib/sql/__tests__/guard.test.ts lib/sql/__tests__/executor.test.ts lib/retrieval/__tests__/glossary.test.ts lib/agent/__tests__/verify-grounding.test.ts lib/agent/__tests__/answer-query-live.test.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
