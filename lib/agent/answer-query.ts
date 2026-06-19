@@ -105,7 +105,7 @@ export async function answerQuestionWithExplanation(
     columns: queryResult.columns,
     rows: queryResult.rows,
   });
-  const grounding = verifyGrounding(answer, queryResult.rows);
+  const grounding = verifyGrounding(answer, queryResult.rows, question);
 
   return {
     ...queryResult,

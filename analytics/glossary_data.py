@@ -957,4 +957,25 @@ GLOSSARY_ENTRIES: list[GlossaryEntry] = [
         related_columns=["competitions.is_youth"],
         value_examples=["true", "false"],
     ),
+    GlossaryEntry(
+        term_id="concept.shot_xg_event_join",
+        term="join expected goals to shot event attributes",
+        aliases=[
+            "shot_xg join path",
+            "xg by shot_type",
+            "xg by body_part",
+            "xg by play_pattern",
+            "expected goals with shot filters",
+        ],
+        category="concept",
+        definition="shot_xg has no event attributes. To filter expected goals by shot_type, body_part, or play_pattern, join shot_xg.action_id to spadl_actions.action_id, then spadl_actions.source_event_id to match_events.event_id. Never join shot_xg to match_events on match_id, which multiplies rows and inflates summed xg.",
+        related_tables=["shot_xg", "spadl_actions", "match_events"],
+        related_columns=[
+            "shot_xg.action_id",
+            "spadl_actions.action_id",
+            "spadl_actions.source_event_id",
+            "match_events.event_id",
+        ],
+        value_examples=[],
+    ),
 ]

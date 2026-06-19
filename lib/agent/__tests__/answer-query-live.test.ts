@@ -16,7 +16,7 @@ test(
       await import("@/lib/agent/answer-query");
     const { guardSql } = await import("@/lib/sql/guard");
     const result = await answerQuestionWithExplanation(
-      "How many matches are in the database?",
+      "Which player had the highest total expected threat in the 2022 World Cup?",
     );
 
     assert.equal(result.ok, true);

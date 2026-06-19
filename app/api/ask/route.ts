@@ -27,6 +27,12 @@ export async function POST(request: NextRequest) {
     const result = await answerQuestionWithExplanation(parsed.data.question);
 
     if (!result.ok) {
+      console.error(
+        "ask route 422:",
+        result.message,
+        "| generatedSql:",
+        result.generatedSql,
+      );
       return NextResponse.json(
         {
           answer: result.answer,
@@ -52,7 +58,8 @@ export async function POST(request: NextRequest) {
       glossary: result.glossary,
       grounding: result.grounding,
     });
-  } catch {
+  } catch (error) {
+    console.error("ask route failed:", error);
     return NextResponse.json(
       {
         answer: "I could not answer this from the database.",

@@ -4,6 +4,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText, type SystemModelMessage } from "ai";
 
 import { config } from "@/lib/config/env";
+import { getDatasetReference } from "@/lib/retrieval/dataset-reference";
 import { formatGlossaryHits, type GlossaryHit } from "@/lib/retrieval/glossary";
 import { getSchemaContext } from "@/lib/retrieval/schema-context";
 
@@ -25,8 +26,14 @@ const anthropic = createAnthropic({
 export async function generateSql(
   input: GenerateSqlInput,
 ): Promise<GeneratedSql> {
-  const schemaContext = await getSchemaContext();
-  const systemMessage = buildCachedSystemMessage(schemaContext);
+  const [schemaContext, datasetReference] = await Promise.all([
+    getSchemaContext(),
+    getDatasetReference(),
+  ]);
+  const systemMessage = buildCachedSystemMessage(
+    schemaContext,
+    datasetReference,
+  );
   const prompt = buildUserPrompt(input);
   const { text } = await generateText({
     model: anthropic(config.anthropicModel),
@@ -46,10 +53,13 @@ export async function generateSql(
   };
 }
 
-function buildCachedSystemMessage(schemaContext: string): SystemModelMessage {
+function buildCachedSystemMessage(
+  schemaContext: string,
+  datasetReference: string,
+): SystemModelMessage {
   return {
     role: "system",
-    content: `${STATIC_SQL_INSTRUCTIONS}\n\nSchema context:\n${schemaContext}`,
+    content: `${STATIC_SQL_INSTRUCTIONS}\n\nSchema context:\n${schemaContext}\n\nDataset reference:\n${datasetReference}`,
     providerOptions: {
       anthropic: {
         cacheControl: { type: "ephemeral" },
@@ -93,13 +103,18 @@ const STATIC_SQL_INSTRUCTIONS = [
   "Never include prose, markdown, comments, or answer numbers.",
   "Use only tables and columns present in the schema context.",
   "Never invent data.",
-  "Never query row data just to discover labels. Use the glossary exact values.",
+  "Never query row data just to discover labels. Use exact values from the dataset reference and glossary.",
   "Match stored label values exactly, including capitalization.",
+  "Scope competition filters using competitions.name and competitions.season_name with exact values from the dataset reference.",
+  "Match team and competition names exactly as listed in the dataset reference.",
   "For event labels, match match_events.type using values such as Shot or Pass.",
   "For SPADL labels, match spadl_actions.spadl_type using lowercase values such as shot or pass.",
+  "For competition-scoped action value queries, first filter matches in a CTE, then join spadl_actions and action_values.",
   "Prefer action_values.xt_value for expected threat.",
   "Prefer action_values.vaep_value, vaep_offensive, and vaep_defensive for VAEP.",
   "Prefer shot_xg.xg for expected goals.",
+  "To filter shots by an event attribute such as shot_type, body_part, or play_pattern while using shot_xg, join shot_xg.action_id to spadl_actions.action_id, then spadl_actions.source_event_id to match_events.event_id. Never join shot_xg to match_events on match_id, which multiplies rows.",
+  "When combining home and away rows with UNION ALL to compute a per team total, aggregate the combined rows in an outer query with SUM and GROUP BY the team. Do not select an inner aggregate alias without re aggregating it.",
   "The query must be a single SELECT or WITH query whose final statement is SELECT.",
   "Never use INSERT, UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY, CALL, SELECT INTO, or row locking.",
 ].join("\n");

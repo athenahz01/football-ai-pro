@@ -60,6 +60,8 @@ const EXPLANATION_SYSTEM_PROMPT = [
   "Use only the numbers and values present in the provided rows or row count.",
   "Never add statistics from outside the rows.",
   "Never infer or estimate missing values.",
+  "Copy numeric result values exactly as provided. Do not round them.",
+  "Do not repeat numbers from the question unless the same number appears in the rows or row count.",
   "If the result is empty, say plainly that the data has no answer for this question.",
   "Do not mention SQL unless it helps clarify the result.",
   "Do not use em dashes.",

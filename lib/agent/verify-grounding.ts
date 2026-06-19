@@ -7,17 +7,27 @@ export type GroundingVerification = {
 
 // Advisory check for evaluation. Percentages and derived ratios may be valid
 // even when they are not printed verbatim in a result row.
+// A number is only ungrounded when it is absent from the rows, is not a simple
+// aggregate of the rows, and was not present in the question. The rule we
+// enforce is that the model must not invent statistics, not that it cannot
+// repeat a year or a threshold the user wrote in the question.
 const NUMBER_PATTERN = /(?<![A-Za-z])-?\d[\d,]*(?:\.\d+)?%?/g;
 const EPSILON = 0.000001;
 
 export function verifyGrounding(
   answer: string,
   rows: Record<string, SqlValue>[],
+  question = "",
 ): GroundingVerification {
   const answerNumbers = extractNumbers(answer);
   const groundedNumbers = buildGroundedNumberSet(rows);
+  const questionNumbers = extractNumbers(question)
+    .map(parseNumberText)
+    .filter((numberValue) => Number.isFinite(numberValue));
   const ungroundedNumbers = answerNumbers.filter(
-    (numberText) => !isGroundedNumber(numberText, groundedNumbers),
+    (numberText) =>
+      !isGroundedNumber(numberText, groundedNumbers) &&
+      !isGroundedNumber(numberText, questionNumbers),
   );
 
   return {
