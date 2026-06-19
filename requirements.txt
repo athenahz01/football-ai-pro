@@ -1,0 +1,8 @@
+socceraction==1.5.3
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+psycopg[binary]==3.2.3
+python-dotenv==1.0.1
+multimethod==1.12
+sentence-transformers==3.3.1
