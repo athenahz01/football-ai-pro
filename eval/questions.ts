@@ -7,7 +7,8 @@ export type EvalCategory =
   | "set_pieces"
   | "temporal"
   | "goalkeeping"
-  | "discipline";
+  | "discipline"
+  | "predictions";
 
 export type EvalAnswerSpec = {
   description: string;
@@ -1178,6 +1179,115 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
         "The canonical answer is team_name and foul_committed_count in the first row.",
       entityColumns: ["team_name"],
       valueColumns: ["foul_committed_count"],
+    },
+  },
+  {
+    id: "predictions_051",
+    category: "predictions",
+    question:
+      "In the 2022 FIFA World Cup final between Argentina and France, what is the model's pre-match probability that France win, expressed as a percentage rounded to one decimal place? Use the stored match_predictions.",
+    referenceSql: `
+      select round(prob_away_win * 100, 1) as france_win_percentage
+      from match_predictions
+      where home_team_name = 'Argentina'
+        and away_team_name = 'France'
+        and stage = 'Final'
+    `,
+    answer: {
+      description:
+        "France were the away team in the final, so the answer is prob_away_win as a percentage from the final's prediction row.",
+      valueColumns: ["france_win_percentage"],
+    },
+  },
+  {
+    id: "predictions_052",
+    category: "predictions",
+    question:
+      "Which team has the highest Elo rating in the team_ratings table, and what is that rating?",
+    referenceSql: `
+      select t.name as team_name, r.elo_rating
+      from team_ratings r
+      join teams t on t.team_id = r.team_id
+      order by r.elo_rating desc, t.name
+      limit 1
+    `,
+    answer: {
+      description:
+        "The canonical answer is team_name and elo_rating in the first row.",
+      entityColumns: ["team_name"],
+      valueColumns: ["elo_rating"],
+    },
+  },
+  {
+    id: "predictions_053",
+    category: "predictions",
+    question:
+      "According to match_predictions, what is the model's probability of a draw in the round of 16 match between Morocco and Spain, expressed as a percentage rounded to one decimal place?",
+    referenceSql: `
+      select round(prob_draw * 100, 1) as draw_percentage
+      from match_predictions
+      where home_team_name = 'Morocco'
+        and away_team_name = 'Spain'
+        and stage = 'Round of 16'
+    `,
+    answer: {
+      description:
+        "The canonical answer is prob_draw as a percentage from that match's prediction row.",
+      valueColumns: ["draw_percentage"],
+    },
+  },
+  {
+    id: "predictions_054",
+    category: "predictions",
+    question:
+      "In match_predictions, what is the model's single most likely scoreline for the 2022 FIFA World Cup final? Return the most likely home goals and away goals.",
+    referenceSql: `
+      select most_likely_home_goals, most_likely_away_goals
+      from match_predictions
+      where stage = 'Final'
+    `,
+    answer: {
+      description:
+        "The canonical answer is most_likely_home_goals and most_likely_away_goals in the first row.",
+      valueColumns: ["most_likely_home_goals", "most_likely_away_goals"],
+    },
+  },
+  {
+    id: "predictions_055",
+    category: "predictions",
+    question:
+      "Which team has the highest attack strength in the team_ratings table, and what is that attack strength?",
+    referenceSql: `
+      select t.name as team_name, r.attack_strength
+      from team_ratings r
+      join teams t on t.team_id = r.team_id
+      where r.attack_strength is not null
+      order by r.attack_strength desc, t.name
+      limit 1
+    `,
+    answer: {
+      description:
+        "The canonical answer is team_name and attack_strength in the first row.",
+      entityColumns: ["team_name"],
+      valueColumns: ["attack_strength"],
+    },
+  },
+  {
+    id: "predictions_056",
+    category: "predictions",
+    question:
+      "According to match_predictions, what is the model's expected number of goals for Argentina in the 2022 FIFA World Cup final?",
+    referenceSql: `
+      select expected_home_goals as argentina_expected_goals
+      from match_predictions
+      where home_team_name = 'Argentina'
+        and away_team_name = 'France'
+        and stage = 'Final'
+    `,
+    answer: {
+      description:
+        "Argentina were the home team in the final, so the answer is expected_home_goals from the final's prediction row.",
+      valueColumns: ["argentina_expected_goals"],
     },
   },
 ];

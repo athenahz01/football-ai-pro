@@ -52,6 +52,38 @@ python -m analytics.seed_glossary --verify-idempotency
 
 The glossary describes the neutral schema and stores exact label values for grounding, such as `Shot` for `match_events.type` and `shot` for `spadl_actions.spadl_type`.
 
+## Win Probability
+
+After applying the win probability migration, compute and store the predictions:
+
+```bash
+python -m analytics.run_predictions
+```
+
+Run twice and compare row counts:
+
+```bash
+python -m analytics.run_predictions --verify-idempotency
+```
+
+This walks forward through every match in date order. For each match it reads the
+Elo ratings as they stood before kickoff, fits the Dixon-Coles model on earlier
+matches only, predicts the result, then updates Elo with the real score. It upserts
+the pre-match probabilities into `match_predictions` and the final ratings into
+`team_ratings`. Every prediction uses only earlier matches, so no number is
+hindsight and no probability comes from a language model.
+
+Report the honest walk-forward accuracy:
+
+```bash
+python -m analytics.backtest
+```
+
+This writes `analytics/reports/win_probability_backtest.md`. On the current data,
+a single 64 match tournament with cold-start Elo, the model is close to a uniform
+guess. That is expected and the report says so. Real accuracy validation comes when
+the licensed historical backbone provides seasons of matches to fit on.
+
 ## Reload Check
 
 After applying the event enrichment migration and rerunning the ETL, this query confirms the row count and the new column population:

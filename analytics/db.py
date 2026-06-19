@@ -17,6 +17,8 @@ ALLOWED_UPSERT_TABLES = {
     "spadl_actions",
     "action_values",
     "shot_xg",
+    "team_ratings",
+    "match_predictions",
 }
 
 

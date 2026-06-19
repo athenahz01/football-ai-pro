@@ -113,6 +113,8 @@ const STATIC_SQL_INSTRUCTIONS = [
   "Prefer action_values.xt_value for expected threat.",
   "Prefer action_values.vaep_value, vaep_offensive, and vaep_defensive for VAEP.",
   "Prefer shot_xg.xg for expected goals.",
+  "For win, draw, or loss probabilities, read the stored values in match_predictions. Never compute or invent a probability. Use prob_home_win when the asked team is the home team and prob_away_win when it is the away team, and prob_draw for a draw. Filter by home_team_name and away_team_name, or join home_team_id and away_team_id to teams.",
+  "For team strength, Elo rating, or attack and defense strength, read team_ratings and join team_ratings.team_id to teams.team_id for the name.",
   "To filter shots by an event attribute such as shot_type, body_part, or play_pattern while using shot_xg, join shot_xg.action_id to spadl_actions.action_id, then spadl_actions.source_event_id to match_events.event_id. Never join shot_xg to match_events on match_id, which multiplies rows.",
   "When combining home and away rows with UNION ALL to compute a per team total, aggregate the combined rows in an outer query with SUM and GROUP BY the team. Do not select an inner aggregate alias without re aggregating it.",
   "The query must be a single SELECT or WITH query whose final statement is SELECT.",
