@@ -10,6 +10,22 @@ import { config } from "../lib/config/env";
 
 const BATCH_SIZE = 1_000;
 
+// Source and id residency convention, kept in one clear place.
+// StatsBomb data keeps its bare ids and is labelled source 'statsbomb'.
+// API-Football data is written with an 'af:' id prefix and source 'api_football',
+// so a prefixed id can never collide with a bare StatsBomb number. This is the
+// only place the prefix and source are decided; every row mapper applies them.
+const SOURCE = config.dataProvider === "api_football" ? "api_football" : "statsbomb";
+const ID_PREFIX = config.dataProvider === "api_football" ? "af:" : "";
+
+function entityId(id: string): string {
+  return `${ID_PREFIX}${id}`;
+}
+
+function nullableEntityId(id: string | undefined): string | null {
+  return id === undefined ? null : entityId(id);
+}
+
 const TABLES = [
   "competitions",
   "teams",
@@ -30,6 +46,7 @@ type CompetitionRow = {
   gender: string;
   is_international: boolean;
   is_youth: boolean;
+  source: string;
 };
 
 type TeamRow = {
@@ -38,6 +55,7 @@ type TeamRow = {
   country: string | null;
   gender: string;
   group_name: string | null;
+  source: string;
 };
 
 type PlayerRow = {
@@ -45,6 +63,7 @@ type PlayerRow = {
   name: string;
   display_name: string | null;
   country: string | null;
+  source: string;
 };
 
 type PlayerTeamRow = {
@@ -52,6 +71,7 @@ type PlayerTeamRow = {
   team_id: string;
   jersey_number: number | null;
   positions: string[];
+  source: string;
 };
 
 type MatchRow = {
@@ -69,6 +89,7 @@ type MatchRow = {
   stage: string | null;
   venue: string | null;
   referee: string | null;
+  source: string;
 };
 
 type MatchEventRow = {
@@ -97,6 +118,7 @@ type MatchEventRow = {
   is_cross: boolean | null;
   pass_type: string | null;
   shot_type: string | null;
+  source: string;
 };
 
 let supabaseServiceClientPromise:
@@ -155,8 +177,17 @@ async function runEtl(): Promise<RowCounts> {
     "player_id,team_id",
   );
 
-  console.log("Fetching and loading match events.");
-  for (const match of matches) {
+  // Bound the expensive events fetch for API-Football only, where events are one
+  // request per match against the free daily quota. StatsBomb reads free static
+  // files, so its path is left unchanged and loads events for every match.
+  const eventMatches =
+    SOURCE === "api_football"
+      ? matches.slice(0, config.etlMaxEventMatches)
+      : matches;
+  console.log(
+    `Fetching and loading match events for ${eventMatches.length} of ${matches.length} matches.`,
+  );
+  for (const match of eventMatches) {
     const events = await provider.getMatchEvents(match.id);
     await loadEventDependencies(events);
     await upsertRows("match_events", events.map(toMatchEventRow), "event_id");
@@ -351,23 +382,25 @@ function collectTeams(matches: Match[]): Map<string, TeamRow> {
 
 function toCompetitionRow(competition: Competition): CompetitionRow {
   return {
-    competition_id: competition.id,
+    competition_id: entityId(competition.id),
     name: competition.name,
     country: nullable(competition.country),
     season_name: nullable(competition.seasonName),
     gender: competition.gender ?? "unknown",
     is_international: competition.isInternational ?? false,
     is_youth: competition.isYouth ?? false,
+    source: SOURCE,
   };
 }
 
 function toTeamRow(team: Team): TeamRow {
   return {
-    team_id: team.id,
+    team_id: entityId(team.id),
     name: team.name,
     country: nullable(team.country),
     gender: team.gender ?? "unknown",
     group_name: nullable(team.group),
+    source: SOURCE,
   };
 }
 
@@ -376,20 +409,22 @@ function toFallbackTeamRow(
   teamName: string | undefined,
 ): TeamRow {
   return {
-    team_id: teamId,
+    team_id: entityId(teamId),
     name: teamName ?? teamId,
     country: null,
     gender: "unknown",
     group_name: null,
+    source: SOURCE,
   };
 }
 
 function toPlayerRow(player: Player): PlayerRow {
   return {
-    player_id: player.id,
+    player_id: entityId(player.id),
     name: player.name,
     display_name: nullable(player.displayName),
     country: nullable(player.country),
+    source: SOURCE,
   };
 }
 
@@ -398,19 +433,21 @@ function toFallbackPlayerRow(
   playerName: string | undefined,
 ): PlayerRow {
   return {
-    player_id: playerId,
+    player_id: entityId(playerId),
     name: playerName ?? playerId,
     display_name: null,
     country: null,
+    source: SOURCE,
   };
 }
 
 function toPlayerTeamRow(player: Player): PlayerTeamRow {
   return {
-    player_id: player.id,
-    team_id: player.teamId,
+    player_id: entityId(player.id),
+    team_id: entityId(player.teamId),
     jersey_number: player.jerseyNumber ?? null,
     positions: player.positions ?? [],
+    source: SOURCE,
   };
 }
 
@@ -419,22 +456,23 @@ function toFallbackPlayerTeamRow(
   teamId: string,
 ): PlayerTeamRow {
   return {
-    player_id: playerId,
-    team_id: teamId,
+    player_id: entityId(playerId),
+    team_id: entityId(teamId),
     jersey_number: null,
     positions: [],
+    source: SOURCE,
   };
 }
 
 function toMatchRow(match: Match): MatchRow {
   return {
-    match_id: match.id,
-    competition_id: match.competitionId,
+    match_id: entityId(match.id),
+    competition_id: entityId(match.competitionId),
     season_name: nullable(match.seasonName),
     match_date: match.date,
     kickoff_time: nullable(match.kickoffTime),
-    home_team_id: match.homeTeam.id,
-    away_team_id: match.awayTeam.id,
+    home_team_id: entityId(match.homeTeam.id),
+    away_team_id: entityId(match.awayTeam.id),
     home_score: match.score?.home ?? null,
     away_score: match.score?.away ?? null,
     status: match.status ?? "unknown",
@@ -442,23 +480,24 @@ function toMatchRow(match: Match): MatchRow {
     stage: nullable(match.stage),
     venue: nullable(match.venue),
     referee: nullable(match.referee),
+    source: SOURCE,
   };
 }
 
 function toMatchEventRow(event: MatchEvent): MatchEventRow {
   return {
-    event_id: event.id,
-    match_id: event.matchId,
+    event_id: entityId(event.id),
+    match_id: entityId(event.matchId),
     sequence: event.sequence,
     period: event.period,
     minute: event.minute,
     second: event.second,
     type: event.type,
-    team_id: nullable(event.teamId),
+    team_id: nullableEntityId(event.teamId),
     team_name: nullable(event.teamName),
-    player_id: nullable(event.playerId),
+    player_id: nullableEntityId(event.playerId),
     player_name: nullable(event.playerName),
-    possession_team_id: nullable(event.possessionTeamId),
+    possession_team_id: nullableEntityId(event.possessionTeamId),
     possession_team_name: nullable(event.possessionTeamName),
     location_x: event.location?.x ?? null,
     location_y: event.location?.y ?? null,
@@ -472,6 +511,7 @@ function toMatchEventRow(event: MatchEvent): MatchEventRow {
     is_cross: event.isCross ?? null,
     pass_type: nullable(event.passType),
     shot_type: nullable(event.shotType),
+    source: SOURCE,
   };
 }
 
@@ -483,6 +523,7 @@ function mergePlayer(players: Map<string, PlayerRow>, player: PlayerRow): void {
     name: player.name,
     display_name: player.display_name ?? existing?.display_name ?? null,
     country: player.country ?? existing?.country ?? null,
+    source: player.source,
   });
 }
 
@@ -501,6 +542,7 @@ function mergePlayerTeam(
       ...(existing?.positions ?? []),
       ...playerTeam.positions,
     ]),
+    source: playerTeam.source,
   });
 }
 

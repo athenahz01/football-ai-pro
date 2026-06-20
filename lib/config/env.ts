@@ -40,6 +40,10 @@ const envSchema = z.object({
   // with the x-apisports-key header, not the RapidAPI variant.
   API_FOOTBALL_KEY: z.string().optional(),
   ETL_COMPETITION_IDS: z.string().optional().transform(parseCsvList),
+  // Caps how many matches the ETL fetches events for in one run, to keep an
+  // API-Football load well under the free tier of 100 requests per day. Fixtures
+  // and squads are cheap; one events request per match is the expensive part.
+  ETL_MAX_EVENT_MATCHES: z.coerce.number().int().positive().default(30),
   SEMANTIC_CACHE_ENABLED: z.string().optional(),
   SEMANTIC_CACHE_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.97),
   SEMANTIC_CACHE_MAX_AGE_SECONDS: z.coerce.number().min(0).default(0),
@@ -76,6 +80,7 @@ export const config = {
   dataProvider: parsedEnv.data.DATA_PROVIDER satisfies DataProviderId,
   apiFootballKey: parsedEnv.data.API_FOOTBALL_KEY,
   etlCompetitionIds: parsedEnv.data.ETL_COMPETITION_IDS,
+  etlMaxEventMatches: parsedEnv.data.ETL_MAX_EVENT_MATCHES,
   semanticCacheEnabled: parseBoolean(parsedEnv.data.SEMANTIC_CACHE_ENABLED, true),
   semanticCacheSimilarityThreshold:
     parsedEnv.data.SEMANTIC_CACHE_SIMILARITY_THRESHOLD,

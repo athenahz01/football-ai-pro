@@ -9,7 +9,8 @@ export type EvalCategory =
   | "goalkeeping"
   | "discipline"
   | "predictions"
-  | "multilingual";
+  | "multilingual"
+  | "api_football";
 
 export type EvalAnswerSpec = {
   description: string;
@@ -1346,6 +1347,65 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
     answer: {
       description:
         "Same value as the English shot count question, but the answer is written in Portuguese.",
+      valueColumns: ["shot_count"],
+    },
+  },
+  {
+    id: "api_football_060",
+    category: "api_football",
+    question:
+      "How many matches are recorded for the Premier League 2023 season? Return the count of matches.",
+    referenceSql: `
+      select count(*) as match_count
+      from matches m
+      join competitions c on c.competition_id = m.competition_id
+      where m.source = 'api_football'
+        and c.name = 'Premier League'
+        and c.season_name = '2023'
+    `,
+    answer: {
+      description:
+        "The canonical answer is match_count for the API-Football Premier League 2023 season.",
+      valueColumns: ["match_count"],
+    },
+  },
+  {
+    id: "api_football_061",
+    category: "api_football",
+    question:
+      "How many total goals were scored in the Premier League 2023 season from match scores? Return the sum of home_score plus away_score.",
+    referenceSql: `
+      select sum(coalesce(m.home_score, 0) + coalesce(m.away_score, 0)) as total_goals
+      from matches m
+      join competitions c on c.competition_id = m.competition_id
+      where m.source = 'api_football'
+        and c.name = 'Premier League'
+        and c.season_name = '2023'
+    `,
+    answer: {
+      description:
+        "The canonical answer is total_goals for the API-Football Premier League 2023 season.",
+      valueColumns: ["total_goals"],
+    },
+  },
+  {
+    id: "api_football_062",
+    category: "api_football",
+    question:
+      "How many shot events are recorded for the Premier League 2023 season? Return the count of match_events where type is Shot.",
+    referenceSql: `
+      select count(*) as shot_count
+      from match_events me
+      join matches m on m.match_id = me.match_id
+      join competitions c on c.competition_id = m.competition_id
+      where m.source = 'api_football'
+        and c.name = 'Premier League'
+        and c.season_name = '2023'
+        and me.type = 'Shot'
+    `,
+    answer: {
+      description:
+        "API-Football carries no shot level events, so there is no shot data for this competition. The honest answer is zero, scoped to the api_football source rather than borrowing StatsBomb shots.",
       valueColumns: ["shot_count"],
     },
   },

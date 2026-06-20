@@ -160,4 +160,20 @@ A bounded live check fetches one league and a few fixtures with the real key and
 npm run verify:api-football
 ```
 
-This slice does not load API-Football data into the database. StatsBomb data is keyed on StatsBomb ids, API-Football uses its own id space, and the two can collide. Before any API-Football data is persisted, the id residency must be decided: namespacing neutral ids per source, a separate database for the commercial feed, or replacing the StatsBomb dataset.
+### Multi source setup
+
+Both feeds live in one database, separated by a `source` column and an id convention, so the grounded model answers across both from one query surface.
+
+- **Source column.** `source` is on `competitions`, `teams`, `players`, `player_teams`, `matches`, and `match_events`. Existing StatsBomb rows default to `statsbomb`. Filter on `source` to restrict a query to one feed.
+- **Id convention.** StatsBomb keeps its bare numeric ids and source `statsbomb`. API-Football data is written with an `af:` id prefix and source `api_football`. A prefixed id can never collide with a bare StatsBomb number, so this is additive and safe. The convention lives in one place in `scripts/etl.ts`.
+- **Capability difference.** StatsBomb competitions carry shot level event detail and the derived metrics expected threat, VAEP, and expected goals. API-Football competitions carry results, goals, cards, and squads, but no shot level detail and none of those metrics. API-Football events have no coordinates, so the SPADL adapter drops them and they produce no derived metrics. The dataset reference, the glossary, and the `source` column comments teach the model this, so asked for a metric a feed does not have it returns a truthful no data answer rather than inventing one.
+
+#### Running a bounded API-Football load
+
+Select the source and competition with environment variables, then run the existing ETL. Nothing else changes.
+
+```bash
+DATA_PROVIDER=api_football ETL_COMPETITION_IDS=39:2023 ETL_MAX_EVENT_MATCHES=20 npm run etl
+```
+
+Request budget for one league season, for example Premier League 2023: about 1 request for the leagues list, 1 for the season fixtures, one squad request per team (around 20), and one events request per match up to `ETL_MAX_EVENT_MATCHES`. With the cap at 20 that is roughly 42 requests, well under the free tier of 100 per day. The cap applies only to API-Football; the StatsBomb path is unchanged and loads events for every match. Upserts are keyed on the prefixed ids, so a re-run does not duplicate. A second full run in the same day would add another budget, so keep runs spaced under the daily limit.

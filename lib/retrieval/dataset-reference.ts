@@ -5,6 +5,7 @@ import { executeReadOnlySql } from "@/lib/sql/executor";
 type CompetitionReference = {
   name: string;
   seasonName: string | null;
+  source: string;
 };
 
 type TeamReference = {
@@ -26,7 +27,8 @@ async function loadDatasetReference(): Promise<string> {
       `
         select distinct
           name,
-          season_name
+          season_name,
+          source
         from competitions
         where name is not null
         order by name, season_name
@@ -61,6 +63,7 @@ async function loadDatasetReference(): Promise<string> {
           row.season_name === null || row.season_name === undefined
             ? null
             : String(row.season_name).trim(),
+        source: String(row.source ?? "statsbomb").trim(),
       }))
       .filter((competition) => competition.name.length > 0),
     teamsResult.rows
@@ -77,12 +80,21 @@ function formatDatasetReference(
 ): string {
   return [
     buildInstructionLine(competitions),
+    CAPABILITY_INSTRUCTION,
     "Available competitions and seasons:",
     formatCompetitions(competitions),
     "Available teams:",
     formatTeams(teams),
   ].join("\n");
 }
+
+const CAPABILITY_INSTRUCTION = [
+  "Each row belongs to a data feed shown by the source column, present on competitions, teams, players, matches, and match_events.",
+  "StatsBomb competitions, source 'statsbomb', carry shot level event detail and the derived metrics expected threat (action_values.xt_value), VAEP (action_values.vaep_value and its components), and expected goals (shot_xg.xg).",
+  "API-Football competitions, source 'api_football', carry results, goals, cards, and squads, but no shot level detail and none of those derived metrics.",
+  "To restrict a query to one feed, filter on the source column.",
+  "If the user asks for a metric or detail that does not exist for the requested competition's feed, write SQL that returns no rows instead of inventing a number or borrowing from the other feed. For example, expected threat, VAEP, and expected goals do not exist for api_football competitions.",
+].join(" ");
 
 function buildInstructionLine(competitions: CompetitionReference[]): string {
   const hasWorldCup2022 = competitions.some(
@@ -96,7 +108,7 @@ function buildInstructionLine(competitions: CompetitionReference[]): string {
 
   return [
     "Use only exact dimension labels from this reference.",
-    "The current database contains only the competitions listed here, so a competition filter is often unnecessary.",
+    "The database holds more than one competition and more than one data feed, so scope a query to the competition or feed the question is about.",
     mappingInstruction,
   ].join(" ");
 }
@@ -117,7 +129,7 @@ function formatCompetitions(competitions: CompetitionReference[]): string {
 
       return `- competitions.name = ${formatSqlLiteral(
         competition.name,
-      )}, ${seasonFilter}`;
+      )}, ${seasonFilter}, source ${formatSqlLiteral(competition.source)}`;
     })
     .join("\n");
 }
