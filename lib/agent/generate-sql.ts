@@ -3,6 +3,7 @@ import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText, type SystemModelMessage } from "ai";
 
+import { extractUsage, type TokenUsage } from "@/lib/agent/usage";
 import { config } from "@/lib/config/env";
 import { getDatasetReference } from "@/lib/retrieval/dataset-reference";
 import { formatGlossaryHits, type GlossaryHit } from "@/lib/retrieval/glossary";
@@ -17,6 +18,7 @@ export type GenerateSqlInput = {
 
 export type GeneratedSql = {
   sql: string;
+  usage: TokenUsage;
 };
 
 const anthropic = createAnthropic({
@@ -35,7 +37,7 @@ export async function generateSql(
     datasetReference,
   );
   const prompt = buildUserPrompt(input);
-  const { text } = await generateText({
+  const result = await generateText({
     model: anthropic(config.anthropicModel),
     system: systemMessage,
     messages: [
@@ -49,7 +51,8 @@ export async function generateSql(
   });
 
   return {
-    sql: extractSql(text),
+    sql: extractSql(result.text),
+    usage: extractUsage(result),
   };
 }
 

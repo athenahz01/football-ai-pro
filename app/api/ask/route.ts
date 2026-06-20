@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { answerQuestionWithExplanation } from "@/lib/agent/answer-query";
+import { config } from "@/lib/config/env";
+import { checkRateLimit } from "@/lib/rate-limit/limiter";
 
 export const runtime = "nodejs";
 
@@ -10,7 +12,6 @@ const askRequestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  // Phase 1: add per user and per IP rate limiting here before model calls.
   const body = await readJsonBody(request);
   const parsed = askRequestSchema.safeParse(body);
 
@@ -21,6 +22,24 @@ export async function POST(request: NextRequest) {
       },
       { status: 400 },
     );
+  }
+
+  // Check the per IP rate limit before any model call so abuse cannot run up cost.
+  // Per user limits arrive with authentication in a later slice.
+  if (config.rateLimitEnabled) {
+    const limit = await checkRateLimit(clientIp(request));
+
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          error: `You have reached the ${limit.scope} request limit. Please wait about ${limit.retryAfterSeconds} seconds and try again.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSeconds) },
+        },
+      );
+    }
   }
 
   try {
@@ -57,6 +76,7 @@ export async function POST(request: NextRequest) {
       truncated: result.truncated,
       glossary: result.glossary,
       grounding: result.grounding,
+      servedFromCache: result.servedFromCache,
     });
   } catch (error) {
     console.error("ask route failed:", error);
@@ -76,4 +96,17 @@ async function readJsonBody(request: NextRequest): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+function clientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+
+  if (forwardedFor !== null && forwardedFor.length > 0) {
+    const first = forwardedFor.split(",")[0]?.trim();
+    if (first) {
+      return first;
+    }
+  }
+
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
 }

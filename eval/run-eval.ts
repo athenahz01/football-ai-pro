@@ -57,7 +57,13 @@ type EvalQuestionResult = {
       grounded: boolean;
       ungroundedNumbers: string[];
     };
-    usage: null;
+    usage: {
+      inputTokens: number;
+      outputTokens: number;
+      cacheReadTokens: number;
+      cacheWriteTokens: number;
+      costUsd: number;
+    } | null;
   };
   expected?: ExpectedAnswer;
 };
@@ -91,15 +97,19 @@ type EvalReport = {
     p95Ms: number;
   };
   usage: {
-    available: false;
-    averageTokens: null;
-    costPerQuery: null;
+    available: boolean;
+    averageCostUsd: number;
+    p95CostUsd: number;
+    averageTokens: number;
+    costGateUsd: number;
+    costWithinGate: boolean;
   };
   results: EvalQuestionResult[];
 };
 
 const REPORT_DIR = path.join(process.cwd(), "eval", "report");
 const GATE_ACCURACY = 0.9;
+const COST_GATE_USD = 0.05;
 const NUMERIC_RELATIVE_TOLERANCE = 0.001;
 const REFERENCE_SQL_TIMEOUT_MS = 30_000;
 const REFERENCE_SQL_MAX_ROWS = 50;
@@ -136,7 +146,8 @@ async function runQuestion(
     }),
   );
   const model = await time(() =>
-    answerQuestionWithExplanation(question.question),
+    // Bypass the cache so the eval measures real live cost per query.
+    answerQuestionWithExplanation(question.question, { useCache: false }),
   );
   const modelSql = model.value.generatedSql;
   const modelSqlGuard = modelSql === undefined ? undefined : guardSql(modelSql);
@@ -168,7 +179,13 @@ async function runQuestion(
       columns: model.value.columns,
       rows: model.value.rows,
       grounding: model.value.grounding,
-      usage: null,
+      usage: {
+        inputTokens: model.value.usage.inputTokens,
+        outputTokens: model.value.usage.outputTokens,
+        cacheReadTokens: model.value.usage.cacheReadTokens,
+        cacheWriteTokens: model.value.usage.cacheWriteTokens,
+        costUsd: model.value.costUsd,
+      },
     },
     expected: comparison.expected,
   };
@@ -398,12 +415,28 @@ function buildReport(results: EvalQuestionResult[]): EvalReport {
   const accuracy = results.length === 0 ? 0 : passed / results.length;
   const traceability = results.length === 0 ? 0 : grounded / results.length;
   const latencies = results.map((result) => result.model.latencyMs);
+  const costs = results.map((result) => result.model.usage?.costUsd ?? 0);
+  const tokenTotals = results.map((result) =>
+    result.model.usage === null
+      ? 0
+      : result.model.usage.inputTokens +
+        result.model.usage.outputTokens +
+        result.model.usage.cacheReadTokens +
+        result.model.usage.cacheWriteTokens,
+  );
+  const averageCostUsd = average(costs);
+  const p95CostUsd = percentile(costs, 0.95);
+  const costWithinGate =
+    averageCostUsd <= COST_GATE_USD && p95CostUsd <= COST_GATE_USD;
 
   return sanitizeReport({
     generatedAt: new Date().toISOString(),
     gate: {
       requiredAccuracy: GATE_ACCURACY,
-      passed: accuracy > GATE_ACCURACY && grounded === results.length,
+      passed:
+        accuracy > GATE_ACCURACY &&
+        grounded === results.length &&
+        costWithinGate,
     },
     totals: {
       questions: results.length,
@@ -420,9 +453,12 @@ function buildReport(results: EvalQuestionResult[]): EvalReport {
       p95Ms: percentile(latencies, 0.95),
     },
     usage: {
-      available: false,
-      averageTokens: null,
-      costPerQuery: null,
+      available: true,
+      averageCostUsd,
+      p95CostUsd,
+      averageTokens: average(tokenTotals),
+      costGateUsd: COST_GATE_USD,
+      costWithinGate,
     },
     results,
   });
@@ -482,16 +518,19 @@ function buildMarkdown(report: EvalReport): string {
       "",
       `Factual accuracy: ${formatPercent(report.totals.accuracy)} (${report.totals.passed}/${report.totals.questions})`,
       `Traceability: ${formatPercent(report.totals.traceability)} (${report.totals.grounded}/${report.totals.questions})`,
-      `Gate: ${report.gate.passed ? "passed" : "failed"} with accuracy above ${formatPercent(report.gate.requiredAccuracy)} and every answer grounded`,
+      `Gate: ${report.gate.passed ? "passed" : "failed"} with accuracy above ${formatPercent(report.gate.requiredAccuracy)}, every answer grounded, and average and p95 cost per query within ${formatUsd(report.usage.costGateUsd)}`,
       "",
       "## Latency",
       "",
       `Average model latency: ${formatNumber(report.latency.averageMs)} ms`,
       `P95 model latency: ${formatNumber(report.latency.p95Ms)} ms`,
       "",
-      "## Usage",
+      "## Cost",
       "",
-      "Token usage is unavailable because the current pipeline return type does not expose AI SDK usage.",
+      `Average cost per query: ${formatUsd(report.usage.averageCostUsd)}`,
+      `P95 cost per query: ${formatUsd(report.usage.p95CostUsd)}`,
+      `Average tokens per query: ${formatNumber(report.usage.averageTokens)}`,
+      `Cost gate: ${report.usage.costWithinGate ? "within" : "over"} the ${formatUsd(report.usage.costGateUsd)} target (measured live, before semantic caching)`,
       "",
       "## Category Breakdown",
       "",
@@ -576,6 +615,9 @@ function printSummary(report: EvalReport) {
     `Traceability ${formatPercent(report.totals.traceability)} with ${report.totals.grounded}/${report.totals.questions} grounded.`,
   );
   console.log(`Gate ${report.gate.passed ? "passed" : "failed"}.`);
+  console.log(
+    `Average cost per query ${formatUsd(report.usage.averageCostUsd)}, p95 ${formatUsd(report.usage.p95CostUsd)} (live, before semantic caching). Cost gate ${report.usage.costWithinGate ? "within" : "over"} ${formatUsd(report.usage.costGateUsd)}.`,
+  );
   console.log(`Report written to ${REPORT_DIR}.`);
 }
 
@@ -607,6 +649,10 @@ function formatPercent(value: number): string {
 
 function formatNumber(value: number): string {
   return value.toFixed(0);
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(4)}`;
 }
 
 function sanitizeReport<T>(value: T): T {

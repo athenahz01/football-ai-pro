@@ -3,6 +3,7 @@ import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 
+import { extractUsage, type TokenUsage } from "@/lib/agent/usage";
 import { config } from "@/lib/config/env";
 import type { SqlValue } from "@/lib/sql/types";
 
@@ -13,6 +14,11 @@ export type ExplainAnswerInput = {
   rows: Record<string, SqlValue>[];
 };
 
+export type ExplainedAnswer = {
+  answer: string;
+  usage: TokenUsage;
+};
+
 const MAX_ROWS_IN_EXPLANATION_PROMPT = 100;
 const anthropic = createAnthropic({
   apiKey: config.anthropicApiKey,
@@ -20,8 +26,8 @@ const anthropic = createAnthropic({
 
 export async function explainAnswer(
   input: ExplainAnswerInput,
-): Promise<string> {
-  const { text } = await generateText({
+): Promise<ExplainedAnswer> {
+  const result = await generateText({
     model: anthropic(config.anthropicModel),
     system: EXPLANATION_SYSTEM_PROMPT,
     messages: [
@@ -34,7 +40,10 @@ export async function explainAnswer(
     maxOutputTokens: 400,
   });
 
-  return cleanAnswerText(text);
+  return {
+    answer: cleanAnswerText(result.text),
+    usage: extractUsage(result),
+  };
 }
 
 function buildExplanationPrompt(input: ExplainAnswerInput): string {
