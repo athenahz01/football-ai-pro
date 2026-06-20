@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+import {
+  DEFAULT_LANGUAGE,
+  SUPPORTED_LANGUAGES,
+  type LanguageCode,
+} from "@/lib/i18n/languages";
+
 import { AuthStatus } from "./auth-status";
 
 type GroundingInfo = {
@@ -29,6 +35,7 @@ const SAMPLE_QUESTIONS = [
 
 export function AskClient({ initialQuestion }: { initialQuestion: string }) {
   const [question, setQuestion] = useState(initialQuestion);
+  const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +54,7 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
       const response = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, language }),
       });
       const data: AskResponse = await response.json();
       setResult(data);
@@ -83,10 +90,26 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
           placeholder="Which player had the highest total expected threat?"
           onChange={(event) => setQuestion(event.target.value)}
         />
+        <select
+          style={styles.language}
+          value={language}
+          aria-label="Answer language"
+          onChange={(event) => setLanguage(event.target.value as LanguageCode)}
+        >
+          {SUPPORTED_LANGUAGES.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.name}
+            </option>
+          ))}
+        </select>
         <button style={styles.button} type="submit" disabled={loading}>
           {loading ? "Thinking" : "Ask"}
         </button>
       </form>
+      <p style={styles.languageHint}>
+        The answer is written in the language you choose. The numbers are the same
+        in every language.
+      </p>
 
       <div style={styles.samples}>
         {SAMPLE_QUESTIONS.map((sample) => (
@@ -188,14 +211,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
   subtitle: { color: "#555", marginBottom: "24px", lineHeight: 1.5 },
-  form: { display: "flex", gap: "8px", marginBottom: "16px" },
+  form: { display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" },
   input: {
     flex: 1,
+    minWidth: "240px",
     padding: "12px 14px",
     fontSize: "15px",
     border: "1px solid #ccc",
     borderRadius: "8px",
   },
+  language: {
+    padding: "12px 12px",
+    fontSize: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    background: "#fff",
+  },
+  languageHint: { fontSize: "13px", color: "#777", marginBottom: "16px" },
   button: {
     padding: "12px 20px",
     fontSize: "15px",

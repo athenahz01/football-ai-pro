@@ -8,7 +8,8 @@ export type EvalCategory =
   | "temporal"
   | "goalkeeping"
   | "discipline"
-  | "predictions";
+  | "predictions"
+  | "multilingual";
 
 export type EvalAnswerSpec = {
   description: string;
@@ -23,6 +24,10 @@ export type EvalQuestion = {
   question: string;
   referenceSql: string;
   answer: EvalAnswerSpec;
+  // Optional answer language code. The reference SQL is the same as the English
+  // equivalent, so the matcher checks the same result value while the answer is
+  // written in another language. This confirms grounding holds across languages.
+  language?: string;
 };
 
 const WORLD_CUP_MATCHES = `
@@ -1288,6 +1293,60 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
       description:
         "Argentina were the home team in the final, so the answer is expected_home_goals from the final's prediction row.",
       valueColumns: ["argentina_expected_goals"],
+    },
+  },
+  {
+    id: "multilingual_057",
+    category: "multilingual",
+    language: "es",
+    question:
+      "How many matches are in the 2022 FIFA World Cup dataset? Return the count of matches.",
+    referenceSql: `
+      with world_cup_matches as (${WORLD_CUP_MATCHES})
+      select count(*) as match_count
+      from world_cup_matches
+    `,
+    answer: {
+      description:
+        "Same value as the English match count question, but the answer is written in Spanish.",
+      valueColumns: ["match_count"],
+    },
+  },
+  {
+    id: "multilingual_058",
+    category: "multilingual",
+    language: "fr",
+    question:
+      "How many total goals were scored from match scores in the 2022 FIFA World Cup? Return the sum of home_score plus away_score.",
+    referenceSql: `
+      with world_cup_matches as (${WORLD_CUP_MATCHES})
+      select sum(coalesce(m.home_score, 0) + coalesce(m.away_score, 0)) as total_goals
+      from matches m
+      join world_cup_matches wm on wm.match_id = m.match_id
+    `,
+    answer: {
+      description:
+        "Same value as the English total goals question, but the answer is written in French.",
+      valueColumns: ["total_goals"],
+    },
+  },
+  {
+    id: "multilingual_059",
+    category: "multilingual",
+    language: "pt",
+    question:
+      "How many shot events are recorded for the 2022 FIFA World Cup? Return the count of match_events where type is Shot.",
+    referenceSql: `
+      with world_cup_matches as (${WORLD_CUP_MATCHES})
+      select count(*) as shot_count
+      from match_events
+      where match_id in (select match_id from world_cup_matches)
+        and type = 'Shot'
+    `,
+    answer: {
+      description:
+        "Same value as the English shot count question, but the answer is written in Portuguese.",
+      valueColumns: ["shot_count"],
     },
   },
 ];

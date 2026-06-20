@@ -19,6 +19,11 @@ import {
   type CachedAnswer,
 } from "@/lib/cache/query-cache";
 import { config } from "@/lib/config/env";
+import {
+  DEFAULT_LANGUAGE,
+  languageName,
+  type LanguageCode,
+} from "@/lib/i18n/languages";
 import { retrieveGlossary, type GlossaryHit } from "@/lib/retrieval/glossary";
 import { executeReadOnlySql } from "@/lib/sql/executor";
 import { guardSql } from "@/lib/sql/guard";
@@ -70,6 +75,7 @@ export type ExplainedAnswerResult =
 
 export type AnswerOptions = {
   useCache?: boolean;
+  language?: LanguageCode;
 };
 
 export async function answerQuery(
@@ -111,6 +117,7 @@ export async function answerQuestionWithExplanation(
   options: AnswerOptions = {},
 ): Promise<ExplainedAnswerResult> {
   const useCache = options.useCache ?? config.semanticCacheEnabled;
+  const language = options.language ?? DEFAULT_LANGUAGE;
   const embedding = useCache ? await embedQuestion(question) : null;
 
   if (embedding !== null) {
@@ -118,6 +125,7 @@ export async function answerQuestionWithExplanation(
       embedding,
       config.semanticCacheSimilarityThreshold,
       config.semanticCacheMaxAgeSeconds,
+      language,
     );
 
     if (cached !== null) {
@@ -125,10 +133,10 @@ export async function answerQuestionWithExplanation(
     }
   }
 
-  const result = await computeExplainedAnswer(question);
+  const result = await computeExplainedAnswer(question, language);
 
   if (embedding !== null && result.ok) {
-    await storeCachedAnswer(question, embedding, toCachedAnswer(result));
+    await storeCachedAnswer(question, embedding, toCachedAnswer(result), language);
   }
 
   return result;
@@ -136,6 +144,7 @@ export async function answerQuestionWithExplanation(
 
 async function computeExplainedAnswer(
   question: string,
+  language: LanguageCode,
 ): Promise<ExplainedAnswerResult> {
   const queryResult = await answerQuery(question);
 
@@ -160,6 +169,7 @@ async function computeExplainedAnswer(
     executedSql: queryResult.executedSql,
     columns: queryResult.columns,
     rows: queryResult.rows,
+    language: languageName(language),
   });
   const usage = addUsage(queryResult.usage, explanation.usage);
   const grounding = verifyGrounding(explanation.answer, queryResult.rows, question);

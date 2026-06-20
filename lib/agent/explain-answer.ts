@@ -12,6 +12,9 @@ export type ExplainAnswerInput = {
   executedSql: string;
   columns: string[];
   rows: Record<string, SqlValue>[];
+  // Display name of the language to write the answer in, for example "Spanish".
+  // Only the wording changes with the language. The numbers never do.
+  language: string;
 };
 
 export type ExplainedAnswer = {
@@ -29,7 +32,7 @@ export async function explainAnswer(
 ): Promise<ExplainedAnswer> {
   const result = await generateText({
     model: anthropic(config.anthropicModel),
-    system: EXPLANATION_SYSTEM_PROMPT,
+    system: buildSystemPrompt(input.language),
     messages: [
       {
         role: "user",
@@ -64,15 +67,19 @@ function cleanAnswerText(text: string): string {
   return text.trim().replaceAll("\u2014", ", ");
 }
 
-const EXPLANATION_SYSTEM_PROMPT = [
-  "Explain database query results in clear human language.",
-  "Use only the numbers and values present in the provided rows or row count.",
-  "Never add statistics from outside the rows.",
-  "Never infer or estimate missing values.",
-  "Copy numeric result values exactly as provided. Do not round them.",
-  "Do not repeat numbers from the question unless the same number appears in the rows or row count.",
-  "If the result is empty, say plainly that the data has no answer for this question.",
-  "Do not mention SQL unless it helps clarify the result.",
-  "Do not use em dashes.",
-  "Write like a knowledgeable person, with no filler and no breathless verdicts.",
-].join("\n");
+function buildSystemPrompt(language: string): string {
+  return [
+    `Write the answer in ${language}.`,
+    "Explain database query results in clear human language.",
+    "Use only the numbers and values present in the provided rows or row count.",
+    "Never add statistics from outside the rows.",
+    "Never infer or estimate missing values.",
+    "Copy numeric result values exactly as provided. Do not round, reformat, or translate them. Numbers stay the same in every language.",
+    "Team and player names are proper nouns from the data. You may use their common form in the target language, but never change any number.",
+    "Do not repeat numbers from the question unless the same number appears in the rows or row count.",
+    `If the result is empty, say plainly in ${language} that the data has no answer for this question.`,
+    "Do not mention SQL unless it helps clarify the result.",
+    "Do not use em dashes.",
+    "Write like a knowledgeable person, with no filler and no breathless verdicts.",
+  ].join("\n");
+}

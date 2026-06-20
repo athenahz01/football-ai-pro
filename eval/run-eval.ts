@@ -8,6 +8,7 @@ import {
   answerQuestionWithExplanation,
   type ExplainedAnswerResult,
 } from "@/lib/agent/answer-query";
+import { normalizeLanguage } from "@/lib/i18n/languages";
 import { executeReadOnlySql } from "@/lib/sql/executor";
 import { guardSql } from "@/lib/sql/guard";
 import type { SqlExecutionResult, SqlValue } from "@/lib/sql/types";
@@ -146,8 +147,12 @@ async function runQuestion(
     }),
   );
   const model = await time(() =>
-    // Bypass the cache so the eval measures real live cost per query.
-    answerQuestionWithExplanation(question.question, { useCache: false }),
+    // Bypass the cache so the eval measures real live cost per query. The answer
+    // is written in the question's language; the reference value is unchanged.
+    answerQuestionWithExplanation(question.question, {
+      useCache: false,
+      language: normalizeLanguage(question.language),
+    }),
   );
   const modelSql = model.value.generatedSql;
   const modelSqlGuard = modelSql === undefined ? undefined : guardSql(modelSql);

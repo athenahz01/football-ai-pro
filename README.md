@@ -113,6 +113,21 @@ Signed in users can follow teams and players from the `/you` page and get a pers
 
 This feature adds no new environment variables. Signed out users see the normal ask experience unchanged.
 
+## Multilingual Output
+
+The ask page has a language selector. The grounded answer is written in the chosen language, defaulting to English.
+
+This is output translation only. The supported set lives in `lib/i18n/languages.ts` (English, Spanish, French, Portuguese, German). Anything outside it falls back to English.
+
+- Only the natural language wording changes with the language. Every figure still comes from the real query result. The explanation step is told to copy numbers exactly and never translate, round, or invent one.
+- The SQL generation, retrieval, schema, glossary, and dataset reference stay in English. The model writes correct read only SQL even when the answer is requested in another language, and the numbers still come from the rows.
+- The grounding verifier checks numbers, which are language independent, so it still flags an untraceable number in any language.
+- The semantic cache is language aware. The `query_cache.language` column is part of the lookup and the write, so a cached English answer is never served for a Spanish request or the other way round.
+
+Known limitation for a later slice: a question asked in a non English language still retrieves against the English glossary, so retrieval for non English input may be weaker even though the model usually writes correct SQL anyway. This slice does not solve multilingual retrieval.
+
+This feature adds no new environment variables.
+
 ## Data Providers
 
 All football data access goes through `StatsProvider` in `lib/providers/types.ts`. Application code should import `getProvider()` from `lib/providers` and depend only on neutral types such as `Competition`, `Match`, `Team`, `Player`, and `MatchEvent`.

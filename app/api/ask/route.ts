@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { answerQuestionWithExplanation } from "@/lib/agent/answer-query";
 import { config } from "@/lib/config/env";
+import { normalizeLanguage } from "@/lib/i18n/languages";
 import {
   checkRateLimit,
   type RateLimitSubject,
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 
 const askRequestSchema = z.object({
   question: z.string().trim().min(1).max(500),
+  // Optional. Anything outside the supported set falls back to English.
+  language: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -49,7 +52,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await answerQuestionWithExplanation(parsed.data.question);
+    const result = await answerQuestionWithExplanation(parsed.data.question, {
+      language: normalizeLanguage(parsed.data.language),
+    });
 
     if (!result.ok) {
       console.error(

@@ -53,15 +53,16 @@ export async function lookupCachedAnswer(
   embedding: number[],
   similarityThreshold: number,
   maxAgeSeconds: number,
+  language: string,
 ): Promise<CachedAnswer | null> {
   const vector = toVectorLiteral(embedding);
   const maxDistance = 1 - similarityThreshold;
+  // $1 vector, $2 max distance, $3 language, optional $4 freshness seconds.
+  const values: unknown[] = [vector, maxDistance, language];
   const freshnessClause =
     maxAgeSeconds > 0
-      ? "and created_at >= now() - ($3 || ' seconds')::interval"
+      ? "and created_at >= now() - ($4 || ' seconds')::interval"
       : "";
-
-  const values: unknown[] = [vector, maxDistance];
   if (maxAgeSeconds > 0) {
     values.push(String(Math.floor(maxAgeSeconds)));
   }
@@ -83,6 +84,7 @@ export async function lookupCachedAnswer(
         1 - (embedding <=> $1::vector) as similarity
       from query_cache
       where (embedding <=> $1::vector) <= $2
+        and language = $3
         ${freshnessClause}
       order by embedding <=> $1::vector
       limit 1
@@ -103,6 +105,7 @@ export async function storeCachedAnswer(
   question: string,
   embedding: number[],
   entry: CachedAnswer,
+  language: string,
 ): Promise<void> {
   try {
     await executeTrustedWrite(
@@ -120,9 +123,10 @@ export async function storeCachedAnswer(
           grounded,
           ungrounded_numbers,
           glossary,
-          model
+          model,
+          language
         )
-        values ($1, $2::vector, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, $11::jsonb, $12::jsonb, $13)
+        values ($1, $2::vector, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14)
       `,
       [
         question,
@@ -138,6 +142,7 @@ export async function storeCachedAnswer(
         JSON.stringify(entry.ungroundedNumbers),
         JSON.stringify(entry.glossary),
         entry.model,
+        language,
       ],
     );
   } catch (error) {
