@@ -19,6 +19,8 @@ ALLOWED_UPSERT_TABLES = {
     "shot_xg",
     "team_ratings",
     "match_predictions",
+    "cv_clips",
+    "cv_track_metrics",
 }
 
 

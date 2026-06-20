@@ -150,5 +150,47 @@ organized per track rather than per frame:
 }
 ```
 
-This task is tracking only. There is no homography, no pitch coordinates, no
-metrics, no database, and no product integration; those are later tasks.
+## Homography and movement metrics
+
+`cv/homography.py` computes the transform from image pixels to pitch coordinates
+from four or more correspondences between pixels and known pitch positions, and
+maps any track point through it. It is unit tested on synthetic correspondences:
+
+```powershell
+cv\.venv\Scripts\python -m unittest cv.homography_test
+```
+
+Honest limitation: real pitch coordinates in meters need a calibrated clip, one
+where known pitch positions are visible so their pixel locations can be paired with
+their real positions. The current openly licensed sample is not a calibrated
+broadcast match view, so it has no calibration points and its metrics stay in image
+pixels. The machinery is general, so supplying a calibration file for a future
+calibrated, rights confirmed clip produces true meters with no code change.
+
+`cv/metrics.py` derives per track movement metrics from the tracks: total distance,
+top speed, average speed, and time tracked. With a calibration the metrics are in
+meters; without one they are in pixels, and the units are labelled explicitly and
+never relabelled as meters.
+
+```powershell
+cv\.venv\Scripts\python -m cv.metrics --tracks cv\output\football_tennis.tracks.json --output cv\output\football_tennis.metrics.json
+```
+
+On the sample clip, with no calibration, this writes pixel units. The metrics file
+records the license and that the metrics are in pixels.
+
+## Materializing the broadcast_cv source
+
+The CV module stays free of the database. A loader in the analytics layer reads the
+metrics file and writes it into the product as a third labelled source,
+`broadcast_cv`, through the trusted analytics write path, never model SQL:
+
+```powershell
+.venv\Scripts\python -m analytics.load_cv_metrics --metrics cv\output\football_tennis.metrics.json
+```
+
+It namespaces clip and track ids with a `cv:` prefix and labels the rows `source`
+`broadcast_cv`, mirroring how StatsBomb and API-Football are labelled. The metrics
+are per anonymous track, not per identified player. The loader refuses to load
+metrics that were not derived from a rights confirmed clip, so the legal gate
+carries all the way through.

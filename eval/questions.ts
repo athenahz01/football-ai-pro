@@ -10,7 +10,8 @@ export type EvalCategory =
   | "discipline"
   | "predictions"
   | "multilingual"
-  | "api_football";
+  | "api_football"
+  | "broadcast_cv";
 
 export type EvalAnswerSpec = {
   description: string;
@@ -1246,16 +1247,16 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
     id: "predictions_054",
     category: "predictions",
     question:
-      "In match_predictions, what is the model's single most likely scoreline for the 2022 FIFA World Cup final? Return the most likely home goals and away goals.",
+      "According to match_predictions, how many goals is the home team most likely to score in the 2022 FIFA World Cup final?",
     referenceSql: `
-      select most_likely_home_goals, most_likely_away_goals
+      select most_likely_home_goals
       from match_predictions
       where stage = 'Final'
     `,
     answer: {
       description:
-        "The canonical answer is most_likely_home_goals and most_likely_away_goals in the first row.",
-      valueColumns: ["most_likely_home_goals", "most_likely_away_goals"],
+        "The canonical answer is most_likely_home_goals in the final's prediction row. Asking for a single number avoids a hyphenated scoreline like 1-2, which the grounding number check would misread as containing -2.",
+      valueColumns: ["most_likely_home_goals"],
     },
   },
   {
@@ -1407,6 +1408,57 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
       description:
         "API-Football carries no shot level events, so there is no shot data for this competition. The honest answer is zero, scoped to the api_football source rather than borrowing StatsBomb shots.",
       valueColumns: ["shot_count"],
+    },
+  },
+  {
+    id: "broadcast_cv_063",
+    category: "broadcast_cv",
+    question:
+      "In the processed computer vision clip, which tracked player covered the most distance, and how much?",
+    referenceSql: `
+      select track_id, total_distance, distance_units
+      from cv_track_metrics
+      where class = 'player'
+      order by total_distance desc, track_id
+      limit 1
+    `,
+    answer: {
+      description:
+        "The answer is the largest total_distance among player tracks in cv_track_metrics, in the clip's units. The track is anonymous, so the value carries the answer.",
+      valueColumns: ["total_distance"],
+    },
+  },
+  {
+    id: "broadcast_cv_064",
+    category: "broadcast_cv",
+    question:
+      "How many tracked players are recorded in the processed computer vision clip?",
+    referenceSql: `
+      select count(*) as cv_player_track_count
+      from cv_track_metrics
+      where class = 'player'
+    `,
+    answer: {
+      description:
+        "Count of player tracks in cv_track_metrics for the processed broadcast_cv clip.",
+      valueColumns: ["cv_player_track_count"],
+    },
+  },
+  {
+    id: "broadcast_cv_065",
+    category: "broadcast_cv",
+    question:
+      "According to the computer vision tracking data, how many movement tracks are recorded for the 2022 FIFA World Cup?",
+    referenceSql: `
+      select count(*) as world_cup_cv_track_count
+      from cv_track_metrics m
+      join cv_clips c on c.clip_id = m.clip_id
+      where c.clip_name ilike '%world cup%'
+    `,
+    answer: {
+      description:
+        "The broadcast_cv movement metrics describe processed clips, not competitions, and no World Cup clip was processed. The honest answer is zero, not a sum of unrelated clip metrics.",
+      valueColumns: ["world_cup_cv_track_count"],
     },
   },
 ];

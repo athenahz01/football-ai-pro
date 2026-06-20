@@ -25,6 +25,8 @@ const TABLES_IN_PROMPT = [
   "team_metric_totals",
   "team_ratings",
   "match_predictions",
+  "cv_clips",
+  "cv_track_metrics",
   "glossary_terms",
 ];
 

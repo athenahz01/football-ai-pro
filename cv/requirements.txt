@@ -3,3 +3,5 @@ ultralytics==8.3.56
 # Linear assignment solver required by Ultralytics' integrated ByteTrack tracker.
 # lapx is the maintained fork of lap with prebuilt wheels, including Windows.
 lapx==0.9.4
+# Used directly by homography.py and metrics.py for the geometry and movement math.
+numpy==2.4.6
