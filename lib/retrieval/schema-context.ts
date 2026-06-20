@@ -21,6 +21,8 @@ const TABLES_IN_PROMPT = [
   "spadl_actions",
   "action_values",
   "shot_xg",
+  "player_metric_totals",
+  "team_metric_totals",
   "team_ratings",
   "match_predictions",
   "glossary_terms",

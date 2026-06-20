@@ -94,6 +94,7 @@ const CAPABILITY_INSTRUCTION = [
   "API-Football competitions, source 'api_football', carry results, goals, cards, and squads, but no shot level detail and none of those derived metrics.",
   "To restrict a query to one feed, filter on the source column.",
   "If the user asks for a metric or detail that does not exist for the requested competition's feed, write SQL that returns no rows instead of inventing a number or borrowing from the other feed. For example, expected threat, VAEP, and expected goals do not exist for api_football competitions.",
+  "For a player or team total or leaderboard of expected threat, VAEP, or expected goals, prefer the small precomputed tables player_metric_totals and team_metric_totals, ordering by total_xt, total_vaep, or total_xg, rather than summing the full action set, which is slow.",
 ].join(" ");
 
 function buildInstructionLine(competitions: CompetitionReference[]): string {
