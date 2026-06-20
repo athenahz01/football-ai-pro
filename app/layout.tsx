@@ -12,7 +12,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer style={footerStyle}>
+          World Cup data provided by StatsBomb Open Data.
+        </footer>
+      </body>
     </html>
   );
 }
+
+const footerStyle: React.CSSProperties = {
+  maxWidth: "760px",
+  margin: "0 auto",
+  padding: "24px",
+  fontFamily: "system-ui, sans-serif",
+  fontSize: "12px",
+  color: "#999",
+  textAlign: "center",
+};
