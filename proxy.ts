@@ -4,8 +4,11 @@ import { NextResponse, type NextRequest } from "next/server";
 // Refresh the Supabase session on every matched request so server code always
 // sees a current auth state. This uses only the public anon key. It never touches
 // the grounded answer path; it just keeps the session cookie fresh.
+//
+// Starting with Next.js 16, Middleware is named Proxy. The file lives at the
+// project root as proxy.ts and exports a proxy function. The behavior is the same.
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
