@@ -20,6 +20,16 @@
 __pycache__/
 *.py[cod]
 
+# computer vision local artifacts
+/cv/.venv/
+/cv/samples/
+/cv/output/
+/cv/models/
+/cv/runs/
+/cv/.ultralytics/
+/cv/.matplotlib/
+/yolo*.pt
+
 # next.js
 /.next/
 /out/

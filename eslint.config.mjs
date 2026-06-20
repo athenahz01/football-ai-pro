@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     ".venv/**",
+    "cv/.venv/**",
+    "cv/samples/**",
+    "cv/output/**",
+    "cv/.ultralytics/**",
+    "cv/.matplotlib/**",
     "next-env.d.ts",
   ]),
 ]);
