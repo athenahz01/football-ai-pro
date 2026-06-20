@@ -1,0 +1,40 @@
+{
+  "get": "fixtures",
+  "errors": [],
+  "results": 2,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "fixture": {
+        "id": 1035037,
+        "date": "2023-08-11T19:00:00+00:00",
+        "timezone": "UTC",
+        "referee": "Robert Jones",
+        "venue": { "name": "Turf Moor", "city": "Burnley" },
+        "status": { "short": "FT", "long": "Match Finished" }
+      },
+      "league": { "id": 39, "name": "Premier League", "season": 2023, "round": "Regular Season - 1" },
+      "teams": {
+        "home": { "id": 44, "name": "Burnley" },
+        "away": { "id": 50, "name": "Manchester City" }
+      },
+      "goals": { "home": 0, "away": 3 }
+    },
+    {
+      "fixture": {
+        "id": 1035038,
+        "date": "2023-08-12T11:30:00+00:00",
+        "timezone": "UTC",
+        "referee": null,
+        "venue": { "name": "Emirates Stadium", "city": "London" },
+        "status": { "short": "NS", "long": "Not Started" }
+      },
+      "league": { "id": 39, "name": "Premier League", "season": 2023, "round": "Regular Season - 1" },
+      "teams": {
+        "home": { "id": 42, "name": "Arsenal" },
+        "away": { "id": 51, "name": "Nottingham Forest" }
+      },
+      "goals": { "home": null, "away": null }
+    }
+  ]
+}

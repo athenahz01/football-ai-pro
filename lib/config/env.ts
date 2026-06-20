@@ -35,6 +35,10 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
   DATA_PROVIDER: z.enum(["statsbomb_open", "api_football"]),
+  // Server only. Required only when DATA_PROVIDER is api_football and live
+  // requests are made. The direct base URL is https://v3.football.api-sports.io
+  // with the x-apisports-key header, not the RapidAPI variant.
+  API_FOOTBALL_KEY: z.string().optional(),
   ETL_COMPETITION_IDS: z.string().optional().transform(parseCsvList),
   SEMANTIC_CACHE_ENABLED: z.string().optional(),
   SEMANTIC_CACHE_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.97),
@@ -70,6 +74,7 @@ export const config = {
   anthropicApiKey: parsedEnv.data.ANTHROPIC_API_KEY,
   anthropicModel: parsedEnv.data.ANTHROPIC_MODEL,
   dataProvider: parsedEnv.data.DATA_PROVIDER satisfies DataProviderId,
+  apiFootballKey: parsedEnv.data.API_FOOTBALL_KEY,
   etlCompetitionIds: parsedEnv.data.ETL_COMPETITION_IDS,
   semanticCacheEnabled: parseBoolean(parsedEnv.data.SEMANTIC_CACHE_ENABLED, true),
   semanticCacheSimilarityThreshold:

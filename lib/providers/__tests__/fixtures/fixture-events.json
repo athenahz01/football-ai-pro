@@ -1,0 +1,35 @@
+{
+  "get": "fixtures/events",
+  "errors": [],
+  "results": 3,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "time": { "elapsed": 5, "extra": null },
+      "team": { "id": 50, "name": "Manchester City" },
+      "player": { "id": 1100, "name": "Erling Haaland" },
+      "assist": { "id": null, "name": null },
+      "type": "Goal",
+      "detail": "Normal Goal",
+      "comments": null
+    },
+    {
+      "time": { "elapsed": 47, "extra": null },
+      "team": { "id": 44, "name": "Burnley" },
+      "player": { "id": 2000, "name": "Josh Brownhill" },
+      "assist": { "id": null, "name": null },
+      "type": "Card",
+      "detail": "Yellow Card",
+      "comments": null
+    },
+    {
+      "time": { "elapsed": 65, "extra": null },
+      "team": { "id": 50, "name": "Manchester City" },
+      "player": { "id": 1101, "name": "Julian Alvarez" },
+      "assist": { "id": 1100, "name": "Erling Haaland" },
+      "type": "subst",
+      "detail": "Substitution 1",
+      "comments": null
+    }
+  ]
+}

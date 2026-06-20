@@ -142,3 +142,22 @@ To add a new provider:
 4. Set `DATA_PROVIDER` to the new provider id.
 
 No code outside provider implementations should depend on source-specific response shapes.
+
+### API-Football provider
+
+`ApiFootballProvider` in `lib/providers/api-football.ts` is the licensed commercial backbone. Commercial use is permitted on every API-Football tier. Selecting it is a single switch: set `DATA_PROVIDER=api_football` and provide `API_FOOTBALL_KEY`. No code outside the provider layer changes.
+
+- It uses the direct API at `https://v3.football.api-sports.io` with the `x-apisports-key` header, not the RapidAPI variant.
+- It maps leagues to competitions, fixtures to matches, fixture events to events, and squads to players, with a neutral competition id of `leagueId:season`. Every API-Football specific shape stays inside the provider file.
+- Real source limitation: API-Football provides no event level pitch coordinates, so expected threat, VAEP, and expected goals cannot be computed from it. Coordinate and detail dependent fields (location, end location, body part, pass type, shot type, play pattern) are left undefined and never fabricated. The deep analytics stay StatsBomb only.
+- It is request frugal, caches responses in memory within a run, and the free tier allows 100 requests per day.
+
+Unit tests in `lib/providers/__tests__/api-football.test.ts` feed saved API-Football JSON through the mapping with a stub transport, so the mapping is verified without spending the daily quota.
+
+A bounded live check fetches one league and a few fixtures with the real key and prints the mapped neutral output, about three requests, writing nothing to the database:
+
+```bash
+npm run verify:api-football
+```
+
+This slice does not load API-Football data into the database. StatsBomb data is keyed on StatsBomb ids, API-Football uses its own id space, and the two can collide. Before any API-Football data is persisted, the id residency must be decided: namespacing neutral ids per source, a separate database for the commercial feed, or replacing the StatsBomb dataset.

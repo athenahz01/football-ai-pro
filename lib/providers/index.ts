@@ -1,4 +1,5 @@
 import { config } from "@/lib/config/env";
+import { ApiFootballProvider } from "@/lib/providers/api-football";
 import { StatsBombOpenDataProvider } from "@/lib/providers/statsbomb-open";
 import type { DataProviderId, StatsProvider } from "@/lib/providers/types";
 
@@ -9,9 +10,9 @@ export function getProvider(): StatsProvider {
     case "statsbomb_open":
       return new StatsBombOpenDataProvider();
     case "api_football":
-      // Register ApiFootballProvider here later. Product code only sees StatsProvider,
-      // so changing DATA_PROVIDER is the only source switch needed.
-      throw new Error("ApiFootballProvider is not implemented yet.");
+      // Product code only sees StatsProvider, so changing DATA_PROVIDER to
+      // api_football is the only switch needed to select the commercial source.
+      return new ApiFootballProvider({ apiKey: config.apiFootballKey });
     default:
       throw new Error(`Unknown data provider: ${provider satisfies never}`);
   }

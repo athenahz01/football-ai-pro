@@ -1,0 +1,15 @@
+{
+  "get": "players/squads",
+  "errors": [],
+  "results": 1,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "team": { "id": 50, "name": "Manchester City" },
+      "players": [
+        { "id": 617, "name": "Ederson", "age": 30, "number": 31, "position": "Goalkeeper" },
+        { "id": 1100, "name": "Erling Haaland", "age": 23, "number": 9, "position": "Attacker" }
+      ]
+    }
+  ]
+}
