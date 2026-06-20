@@ -131,6 +131,13 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
 
       {result !== null ? (
         <section style={styles.result}>
+          {usedPredictions(result) ? (
+            <p style={styles.disclaimer}>
+              Heads up: predictions are model estimates for entertainment, not
+              betting advice. They are trained on a single tournament so far, so
+              treat them as a rough guide, not a confident call.
+            </p>
+          ) : null}
           {result.answer ? <p style={styles.answer}>{result.answer}</p> : null}
 
           {result.grounding ? (
@@ -201,6 +208,13 @@ function formatCell(value: unknown): string {
   return String(value);
 }
 
+// Show the entertainment framing when an answer was built from the prediction
+// tables, mirroring the language the schema already carries.
+function usedPredictions(result: AskResponse): boolean {
+  const sql = `${result.executedSql ?? ""} ${result.generatedSql ?? ""}`;
+  return /match_predictions|team_ratings/i.test(sql);
+}
+
 const styles: Record<string, React.CSSProperties> = {
   main: {
     maxWidth: "760px",
@@ -250,6 +264,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   error: { color: "#b00020", marginTop: "8px" },
   result: { marginTop: "24px" },
+  disclaimer: {
+    fontSize: "13px",
+    color: "#8a6d00",
+    background: "#fff8e1",
+    border: "1px solid #f0e0a0",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    marginBottom: "12px",
+    lineHeight: 1.5,
+  },
   answer: { fontSize: "17px", lineHeight: 1.6, marginBottom: "12px" },
   grounding: { fontSize: "13px", color: "#555", marginBottom: "16px" },
   details: { marginBottom: "16px" },
