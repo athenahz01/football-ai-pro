@@ -88,3 +88,67 @@ The output is a local JSON file:
 ```
 
 Detection output is written under `cv/output/` by default, which is ignored by git.
+
+## Run tracking
+
+Tracking turns the per frame detections into consistent tracks across frames. It
+runs detection and tracking end to end on the clip and assigns stable track ids to
+players and the ball. The tracker is Ultralytics' integrated ByteTrack, a
+maintained implementation, configured by the bundled `bytetrack.yaml`. ByteTrack
+needs a linear assignment solver, provided by `lapx` in `cv/requirements.txt`.
+
+```powershell
+cv\.venv\Scripts\python -m cv.track --input cv\samples\football_tennis.webm --output cv\output\football_tennis.tracks.json --max-seconds 3 --rights-confirmed
+```
+
+Like detection, the `--rights-confirmed` flag is required, so tracking refuses to
+run on unconfirmed video. The confidence floor defaults to a low 0.1 so ByteTrack
+can use its low confidence association stage to keep the small, faint ball tracked
+across frames. Tracking processes consecutive frames, not a stride, because the
+tracker relies on frame to frame continuity.
+
+Proof run on the documented `Football Tennis` CC BY 3.0 sample, bounded to 3
+seconds: 72 processed frames at 24 fps produced 4 tracks, 3 players and 1 ball. The
+two main players each kept the same id across all 72 frames, and the ball kept a
+single id across all 72 frames.
+
+### Tracking output schema
+
+The output is a local JSON file under `cv/output/`, which is ignored by git. It is
+organized per track rather than per frame:
+
+```json
+{
+  "metadata": {
+    "input_video": "cv/samples/football_tennis.webm",
+    "model": "yolov8n.pt",
+    "tracker": "bytetrack.yaml",
+    "processed_frames": 72,
+    "track_count": 4,
+    "player_track_count": 3,
+    "ball_track_count": 1,
+    "rights_confirmed": true
+  },
+  "tracks": [
+    {
+      "track_id": 1,
+      "class": "player",
+      "frame_count": 72,
+      "first_frame": 0,
+      "last_frame": 71,
+      "trajectory": [
+        {
+          "frame_index": 0,
+          "time_seconds": 0.0,
+          "confidence": 0.91,
+          "bbox_xyxy": { "x1": 10.0, "y1": 20.0, "x2": 80.0, "y2": 180.0 },
+          "center": { "x": 45.0, "y": 100.0 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+This task is tracking only. There is no homography, no pitch coordinates, no
+metrics, no database, and no product integration; those are later tasks.
