@@ -71,6 +71,9 @@ export function AuthStatus() {
     return (
       <div style={styles.bar}>
         <span style={styles.email}>{status.email}</span>
+        <Link href="/you" style={styles.action}>
+          Following
+        </Link>
         <button type="button" style={styles.action} onClick={signOut}>
           Sign out
         </button>

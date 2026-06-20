@@ -102,6 +102,17 @@ Sign in does not work until the Supabase project is configured. In the Supabase 
 3. Open Authentication, then URL Configuration. Set the Site URL to `http://localhost:3000` and add `http://localhost:3000/**` to the Redirect URLs for local development.
 4. Copy the project URL and the anon key into `.env.local` as both the server keys and the `NEXT_PUBLIC` keys.
 
+## Personalization
+
+Signed in users can follow teams and players from the `/you` page and get a personalized starting point.
+
+- `user_follows` stores one row per follow, with foreign keys to `teams` and `players`, so a follow can only point at an entity that exists in our data.
+- `lib/follows/service.ts` is the server side service. Every read and write takes the user id from the server session, never from request input, so a user can only see and change their own follows. Reads use the read only transaction, writes use the trusted parameterized write path, and the team or player is checked to exist before a follow is stored.
+- `/api/follows` exposes follow, unfollow, and list. It returns 401 when signed out.
+- Each followed team or player offers a couple of suggested questions built only from the entity name. They are ordinary questions sent through `/api/ask`, so they are answered by the same grounded pipeline with real SQL and real rows. No statistic is precomputed or injected into a suggestion.
+
+This feature adds no new environment variables. Signed out users see the normal ask experience unchanged.
+
 ## Data Providers
 
 All football data access goes through `StatsProvider` in `lib/providers/types.ts`. Application code should import `getProvider()` from `lib/providers` and depend only on neutral types such as `Competition`, `Match`, `Team`, `Player`, and `MatchEvent`.
