@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { AuthStatus } from "./auth-status";
+
 type GroundingInfo = {
   grounded: boolean;
   ungroundedNumbers: string[];
@@ -61,6 +63,7 @@ export default function AskPage() {
 
   return (
     <main style={styles.main}>
+      <AuthStatus />
       <h1 style={styles.title}>Football AI Pro</h1>
       <p style={styles.subtitle}>
         Ask a question about the 2022 World Cup. Every answer is grounded in a

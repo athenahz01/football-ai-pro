@@ -42,6 +42,10 @@ const envSchema = z.object({
   RATE_LIMIT_ENABLED: z.string().optional(),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(12),
   RATE_LIMIT_PER_DAY: z.coerce.number().int().positive().default(300),
+  RATE_LIMIT_USER_PER_MINUTE: z.coerce.number().int().positive().default(30),
+  RATE_LIMIT_USER_PER_DAY: z.coerce.number().int().positive().default(1000),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   ANTHROPIC_INPUT_USD_PER_MTOK: z.coerce.number().min(0).default(1.0),
   ANTHROPIC_OUTPUT_USD_PER_MTOK: z.coerce.number().min(0).default(5.0),
   ANTHROPIC_CACHE_READ_USD_PER_MTOK: z.coerce.number().min(0).default(0.1),
@@ -74,6 +78,13 @@ export const config = {
   rateLimitEnabled: parseBoolean(parsedEnv.data.RATE_LIMIT_ENABLED, true),
   rateLimitPerMinute: parsedEnv.data.RATE_LIMIT_PER_MINUTE,
   rateLimitPerDay: parsedEnv.data.RATE_LIMIT_PER_DAY,
+  // Signed in users get higher limits than anonymous IP traffic.
+  rateLimitUserPerMinute: parsedEnv.data.RATE_LIMIT_USER_PER_MINUTE,
+  rateLimitUserPerDay: parsedEnv.data.RATE_LIMIT_USER_PER_DAY,
+  // Public Supabase values are safe to expose to the browser. The browser reads
+  // the NEXT_PUBLIC values directly; server code reads the anon key and URL below.
+  supabasePublicUrl: parsedEnv.data.NEXT_PUBLIC_SUPABASE_URL,
+  supabasePublicAnonKey: parsedEnv.data.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   // Per-token prices for the configured model, derived from the per-million
   // dollar prices. Cache reads are far cheaper than fresh input, cache writes a
   // little more expensive. Defaults match Claude Haiku 4.5.

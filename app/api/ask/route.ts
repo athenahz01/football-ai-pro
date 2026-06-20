@@ -3,7 +3,11 @@ import { z } from "zod";
 
 import { answerQuestionWithExplanation } from "@/lib/agent/answer-query";
 import { config } from "@/lib/config/env";
-import { checkRateLimit } from "@/lib/rate-limit/limiter";
+import {
+  checkRateLimit,
+  type RateLimitSubject,
+} from "@/lib/rate-limit/limiter";
+import { getAuthenticatedUser } from "@/lib/supabase/server-client";
 
 export const runtime = "nodejs";
 
@@ -24,10 +28,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check the per IP rate limit before any model call so abuse cannot run up cost.
-  // Per user limits arrive with authentication in a later slice.
+  // Check the rate limit before any model call so abuse cannot run up cost. A
+  // signed in user is limited per user id with a higher allowance; anonymous
+  // traffic is limited per client IP.
   if (config.rateLimitEnabled) {
-    const limit = await checkRateLimit(clientIp(request));
+    const subject = await resolveSubject(request);
+    const limit = await checkRateLimit(subject);
 
     if (!limit.allowed) {
       return NextResponse.json(
@@ -96,6 +102,21 @@ async function readJsonBody(request: NextRequest): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+async function resolveSubject(
+  request: NextRequest,
+): Promise<RateLimitSubject> {
+  try {
+    const user = await getAuthenticatedUser();
+    if (user) {
+      return { kind: "user", value: user.id };
+    }
+  } catch {
+    // If auth is not configured or the lookup fails, fall back to the IP limit.
+  }
+
+  return { kind: "ip", value: clientIp(request) };
 }
 
 function clientIp(request: NextRequest): string {

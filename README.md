@@ -67,7 +67,40 @@ Required keys:
 - `ANTHROPIC_API_KEY`
 - `DATA_PROVIDER`, one of `statsbomb_open` or `api_football`
 
-The Supabase service client is server-only and used by the ETL. No LLM clients are wired in this cluster.
+The Supabase service client is server-only and used by the ETL. The service role key and `SUPABASE_DB_URL` are never exposed to the browser.
+
+## Authentication
+
+Authentication uses Supabase Auth with email and password through the `@supabase/ssr` package.
+
+- `lib/supabase/server-client.ts` is the server side client. It reads the session from cookies and uses the anon key from the validated config. Server code calls `getAuthenticatedUser()` to learn who is signed in.
+- `lib/supabase/browser-client.ts` is the browser client. It uses only the public anon key.
+- `middleware.ts` refreshes the session cookie on each request.
+
+Flows:
+
+- `/auth` is a sign in and sign up page. After signing in you return to `/ask`.
+- The `/ask` page shows the signed in email and a sign out control, or a sign in link when anonymous.
+- The product stays usable signed out. Anonymous users are rate limited per IP, signed in users per user id with a higher limit.
+
+Browser env keys, both safe to expose and equal to the server values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Rate limit keys, all optional with defaults:
+
+- `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_PER_DAY` for anonymous IP traffic
+- `RATE_LIMIT_USER_PER_MINUTE`, `RATE_LIMIT_USER_PER_DAY` for signed in users
+
+### Supabase dashboard setup
+
+Sign in does not work until the Supabase project is configured. In the Supabase dashboard:
+
+1. Open Authentication, then Providers, and enable the Email provider.
+2. For a smooth local prototype, turn off "Confirm email" under the Email provider, or be ready to click the confirmation link the first time. With confirmation on, a new sign up cannot sign in until the email is confirmed.
+3. Open Authentication, then URL Configuration. Set the Site URL to `http://localhost:3000` and add `http://localhost:3000/**` to the Redirect URLs for local development.
+4. Copy the project URL and the anon key into `.env.local` as both the server keys and the `NEXT_PUBLIC` keys.
 
 ## Data Providers
 
