@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -71,6 +72,14 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
   return (
     <main style={styles.main}>
       <AuthStatus />
+      <nav style={styles.nav}>
+        <Link href="/compare" style={styles.navLink}>
+          Compare
+        </Link>
+        <Link href="/scout" style={styles.navLink}>
+          Scout
+        </Link>
+      </nav>
       <h1 style={styles.title}>Football AI Pro</h1>
       <p style={styles.subtitle}>
         Ask a question about the 2022 World Cup. Every answer is grounded in a
@@ -223,6 +232,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "system-ui, sans-serif",
     color: "#111",
   },
+  nav: { display: "flex", gap: "16px", marginBottom: "12px", fontSize: "14px" },
+  navLink: { color: "#333" },
   title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
   subtitle: { color: "#555", marginBottom: "24px", lineHeight: 1.5 },
   form: { display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" },
