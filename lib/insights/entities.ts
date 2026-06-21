@@ -125,6 +125,65 @@ export async function featuredTeams(limit = 6): Promise<FeaturedEntity[]> {
   }));
 }
 
+export type EntityCardData = {
+  kind: EntityKind;
+  id: string;
+  name: string;
+  metricLabel: string;
+  display: string | null;
+};
+
+// Card data for a set of followed entities, batched into one query per kind. Used by
+// the home screen so it can show a follower's teams and players as cards with a key
+// number. An entity with no expected goals in the feed shows no number rather than a
+// fabricated zero.
+export async function cardsForFollows(
+  players: { id: string; name: string }[],
+  teams: { id: string; name: string }[],
+): Promise<EntityCardData[]> {
+  const cards: EntityCardData[] = [];
+
+  if (players.length > 0) {
+    const rows = await runReadOnly(
+      `select player_id as id, total_xg from player_metric_totals where player_id = any($1)`,
+      [players.map((player) => player.id)],
+      players.length,
+    );
+    const xg = new Map(rows.map((row) => [String(row.id), toNumber(row.total_xg)]));
+    for (const player of players) {
+      const value = xg.get(player.id) ?? null;
+      cards.push({
+        kind: "player",
+        id: player.id,
+        name: player.name,
+        metricLabel: "Expected goals",
+        display: value === null ? null : value.toFixed(2),
+      });
+    }
+  }
+
+  if (teams.length > 0) {
+    const rows = await runReadOnly(
+      `select team_id as id, total_xg from team_metric_totals where team_id = any($1)`,
+      [teams.map((team) => team.id)],
+      teams.length,
+    );
+    const xg = new Map(rows.map((row) => [String(row.id), toNumber(row.total_xg)]));
+    for (const team of teams) {
+      const value = xg.get(team.id) ?? null;
+      cards.push({
+        kind: "team",
+        id: team.id,
+        name: team.name,
+        metricLabel: "Expected goals",
+        display: value === null ? null : value.toFixed(2),
+      });
+    }
+  }
+
+  return cards;
+}
+
 export async function getPlayerProfile(
   playerId: string,
 ): Promise<PlayerProfile | null> {
