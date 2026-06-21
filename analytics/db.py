@@ -21,6 +21,7 @@ ALLOWED_UPSERT_TABLES = {
     "match_predictions",
     "cv_clips",
     "cv_track_metrics",
+    "cv_track_points",
 }
 
 

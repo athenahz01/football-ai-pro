@@ -61,6 +61,9 @@ export default async function ComparePage({
         <Link href="/scout" style={styles.navLink}>
           Scout
         </Link>
+        <Link href="/replay" style={styles.navLink}>
+          Replay
+        </Link>
       </nav>
 
       <h1 style={styles.title}>Compare</h1>

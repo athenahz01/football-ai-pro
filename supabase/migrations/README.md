@@ -38,6 +38,8 @@ close-out.
 | 202606190006_query_cache_language | Language column on query_cache | yes |
 | 202606190007_source_dimension | source column on the entity and event tables | yes |
 | 202606190008_metric_totals | Precomputed player and team metric totals | yes |
+| 202606190009_cv_metrics | broadcast_cv source: cv_clips and cv_track_metrics | yes |
+| 202606190010_cv_track_points | Per frame track positions for the 3D replay | yes |
 
 ## Notes
 
