@@ -8,6 +8,7 @@ import {
   SUPPORTED_LANGUAGES,
   type LanguageCode,
 } from "@/lib/i18n/languages";
+import type { PublicBillingState } from "@/lib/billing/types";
 
 import { AuthStatus } from "./auth-status";
 
@@ -28,16 +29,31 @@ type AskResponse = {
   error?: string;
 };
 
+type BillingActionResponse = {
+  url?: string;
+  error?: string;
+};
+
 const SAMPLE_QUESTIONS = [
   "Which player scored the most goals in the 2022 World Cup?",
   "Which team had the highest total expected goals?",
   "Who attempted the most shots, and how many?",
 ];
 
-export function AskClient({ initialQuestion }: { initialQuestion: string }) {
+export function AskClient({
+  initialQuestion,
+  billing,
+}: {
+  initialQuestion: string;
+  billing: PublicBillingState;
+}) {
   const [question, setQuestion] = useState(initialQuestion);
   const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);
   const [loading, setLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState<
+    "checkout" | "portal" | null
+  >(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +85,31 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
     }
   }
 
+  async function startBilling(path: string, action: "checkout" | "portal") {
+    if (billingLoading !== null) {
+      return;
+    }
+
+    setBillingLoading(action);
+    setBillingError(null);
+
+    try {
+      const response = await fetch(path, { method: "POST" });
+      const data: BillingActionResponse = await response.json();
+
+      if (!response.ok || !data.url) {
+        setBillingError(data.error ?? "Billing could not be opened.");
+        return;
+      }
+
+      window.location.assign(data.url);
+    } catch {
+      setBillingError("Billing could not be opened.");
+    } finally {
+      setBillingLoading(null);
+    }
+  }
+
   return (
     <main style={styles.main}>
       <AuthStatus />
@@ -91,6 +132,13 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
         Ask a question about the 2022 World Cup. Every answer is grounded in a
         real query against the database.
       </p>
+      <BillingPanel
+        billing={billing}
+        loading={billingLoading}
+        error={billingError}
+        onCheckout={() => startBilling("/api/billing/checkout", "checkout")}
+        onPortal={() => startBilling("/api/billing/portal", "portal")}
+      />
 
       <form
         style={styles.form}
@@ -122,8 +170,8 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
         </button>
       </form>
       <p style={styles.languageHint}>
-        The answer is written in the language you choose. The numbers are the same
-        in every language.
+        The answer is written in the language you choose. The numbers are the
+        same in every language.
       </p>
 
       <div style={styles.samples}>
@@ -165,7 +213,7 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
             </p>
           ) : null}
 
-          {result.executedSql ?? result.generatedSql ? (
+          {(result.executedSql ?? result.generatedSql) ? (
             <details style={styles.details}>
               <summary>Show the SQL that produced this answer</summary>
               <pre style={styles.pre}>
@@ -180,6 +228,76 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function BillingPanel({
+  billing,
+  loading,
+  error,
+  onCheckout,
+  onPortal,
+}: {
+  billing: PublicBillingState;
+  loading: "checkout" | "portal" | null;
+  error: string | null;
+  onCheckout: () => void;
+  onPortal: () => void;
+}) {
+  if (!billing.authenticated) {
+    return (
+      <section style={styles.billingPanel}>
+        <p style={styles.billingText}>
+          Sign in to keep a higher request limit on your account.
+        </p>
+        <Link href="/auth" style={styles.billingLink}>
+          Sign in
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section style={styles.billingPanel}>
+      <div>
+        <strong style={styles.billingTitle}>
+          {billing.tier === "premium" ? "Premium" : "Free"}
+        </strong>
+        <p style={styles.billingText}>
+          {billing.tier === "premium"
+            ? "Premium is active with a higher request limit."
+            : "Upgrade for a higher signed-in request limit."}
+        </p>
+        {billing.currentPeriodEnd ? (
+          <p style={styles.billingMeta}>
+            Current period ends {formatDate(billing.currentPeriodEnd)}.
+          </p>
+        ) : null}
+        {error !== null ? <p style={styles.billingError}>{error}</p> : null}
+      </div>
+      <div style={styles.billingActions}>
+        {billing.tier === "premium" || billing.canManageBilling ? (
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            disabled={loading !== null}
+            onClick={onPortal}
+          >
+            {loading === "portal" ? "Opening" : "Manage"}
+          </button>
+        ) : null}
+        {billing.tier !== "premium" ? (
+          <button
+            type="button"
+            style={styles.button}
+            disabled={loading !== null}
+            onClick={onCheckout}
+          >
+            {loading === "checkout" ? "Opening" : "Upgrade"}
+          </button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -223,6 +341,12 @@ function formatCell(value: unknown): string {
   return String(value);
 }
 
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+  }).format(new Date(value));
+}
+
 // Show the entertainment framing when an answer was built from the prediction
 // tables, mirroring the language the schema already carries.
 function usedPredictions(result: AskResponse): boolean {
@@ -242,6 +366,33 @@ const styles: Record<string, React.CSSProperties> = {
   navLink: { color: "#333" },
   title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
   subtitle: { color: "#555", marginBottom: "24px", lineHeight: 1.5 },
+  billingPanel: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    alignItems: "center",
+    border: "1px solid #e2e2e2",
+    borderRadius: "8px",
+    padding: "12px 14px",
+    marginBottom: "20px",
+    background: "#fafafa",
+  },
+  billingTitle: { display: "block", fontSize: "14px", marginBottom: "4px" },
+  billingText: { margin: 0, color: "#555", fontSize: "13px", lineHeight: 1.5 },
+  billingMeta: {
+    margin: "4px 0 0",
+    color: "#777",
+    fontSize: "12px",
+    lineHeight: 1.5,
+  },
+  billingError: {
+    margin: "6px 0 0",
+    color: "#b00020",
+    fontSize: "12px",
+    lineHeight: 1.5,
+  },
+  billingActions: { display: "flex", gap: "8px", flexWrap: "wrap" },
+  billingLink: { color: "#333", fontSize: "13px", fontWeight: 600 },
   form: { display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" },
   input: {
     flex: 1,
@@ -269,7 +420,22 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "8px",
     cursor: "pointer",
   },
-  samples: { display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "24px" },
+  secondaryButton: {
+    padding: "12px 20px",
+    fontSize: "15px",
+    fontWeight: 600,
+    color: "#111",
+    background: "#fff",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+  samples: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    marginBottom: "24px",
+  },
   sampleButton: {
     padding: "8px 12px",
     fontSize: "13px",

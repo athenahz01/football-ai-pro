@@ -92,6 +92,23 @@ Rate limit keys, all optional with defaults:
 
 - `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_PER_DAY` for anonymous IP traffic
 - `RATE_LIMIT_USER_PER_MINUTE`, `RATE_LIMIT_USER_PER_DAY` for signed in users
+- `RATE_LIMIT_PREMIUM_PER_MINUTE`, `RATE_LIMIT_PREMIUM_PER_DAY` for premium users
+
+## Billing Foundation
+
+Phase 3 adds a Stripe test-mode subscription foundation. It does not paywall any existing feature. Premium currently proves the entitlement path by raising the signed-in rate limit only.
+
+- `user_subscriptions` stores the Supabase auth user id, tier, Stripe customer id, Stripe subscription id, status, and current period end. No row means free.
+- Checkout and customer portal routes use the current server session user only. They never accept a user id from request input.
+- Stripe webhooks verify the Stripe signature, map the event through the stored Stripe customer id, and update the subscription row through the trusted parameterized write path.
+- Secrets stay server only. The browser only receives the checkout or portal redirect URL returned by the server.
+
+Stripe test keys for `.env.local`:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PREMIUM_PRICE_ID`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 
 ### Supabase dashboard setup
 

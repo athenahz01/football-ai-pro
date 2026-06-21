@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getUserTier } from "@/lib/billing/service";
 import { config } from "@/lib/config/env";
 import { executeTrustedWrite } from "@/lib/db/write-pool";
 
@@ -41,8 +42,16 @@ export type RateLimitResult = {
 const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
 
-function limitsFor(subject: RateLimitSubject): WindowLimits {
+async function limitsFor(subject: RateLimitSubject): Promise<WindowLimits> {
   if (subject.kind === "user") {
+    const tier = await getUserTier(subject.value);
+    if (tier === "premium") {
+      return {
+        minute: config.rateLimitPremiumPerMinute,
+        day: config.rateLimitPremiumPerDay,
+      };
+    }
+
     return {
       minute: config.rateLimitUserPerMinute,
       day: config.rateLimitUserPerDay,
@@ -59,7 +68,7 @@ export async function checkRateLimit(
   subject: RateLimitSubject,
   now: number = Date.now(),
 ): Promise<RateLimitResult> {
-  const limits = limitsFor(subject);
+  const limits = await limitsFor(subject);
   const windows: WindowCheck[] = [];
 
   const minute = await incrementWindow(
@@ -74,11 +83,7 @@ export async function checkRateLimit(
     retryAfterSeconds: secondsUntilNextWindow(now, MINUTE_MS),
   });
 
-  const day = await incrementWindow(
-    subject,
-    "day",
-    floorToWindow(now, DAY_MS),
-  );
+  const day = await incrementWindow(subject, "day", floorToWindow(now, DAY_MS));
   windows.push({
     kind: "day",
     limit: limits.day,

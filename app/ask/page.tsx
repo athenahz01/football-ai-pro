@@ -1,3 +1,5 @@
+import { getCurrentUserBillingState } from "@/lib/billing/service";
+
 import { AskClient } from "./ask-client";
 
 // Server wrapper. It reads an optional prefilled question from the URL, for
@@ -13,6 +15,7 @@ export default async function AskPage({
   const params = await searchParams;
   const raw = params.q;
   const initialQuestion = typeof raw === "string" ? raw.slice(0, 500) : "";
+  const billing = await getCurrentUserBillingState();
 
-  return <AskClient initialQuestion={initialQuestion} />;
+  return <AskClient initialQuestion={initialQuestion} billing={billing} />;
 }
