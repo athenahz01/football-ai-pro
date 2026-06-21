@@ -838,6 +838,14 @@
   max-width: 640px;
 }
 
+/* ---------------- Pitch viz ---------------- */
+@media (min-width: 720px) {
+  .md-pitchviz-grid {
+    grid-template-columns: 1fr 170px !important;
+    align-items: start;
+  }
+}
+
 /* ---------------- Replay player ---------------- */
 @keyframes md-trail-dash {
   to {

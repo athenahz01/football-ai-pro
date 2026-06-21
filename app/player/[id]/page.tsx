@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getPlayerProfile } from "@/lib/insights/entities";
+import { getPlayerEvents } from "@/lib/insights/pitch";
 import { EntityIdentity } from "@/components/matchday/entity-identity";
 import { StatGrid } from "@/components/matchday/profile/stat-grid";
 import { ProfileActions } from "@/components/matchday/profile/profile-actions";
-import { PitchMap } from "@/components/matchday/dataviz/pitch-map";
+import { PitchViz } from "@/components/matchday/dataviz/pitch-viz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,9 @@ export default async function PlayerPage({
   if (profile === null) {
     notFound();
   }
+
+  const events = await getPlayerEvents(profile.id);
+  const hasEvents = events.shots.length > 0 || events.passes.length > 0;
 
   const meta = [profile.teamName, profile.country, profile.competitionName ?? profile.competitionId]
     .filter(Boolean)
@@ -62,25 +66,17 @@ export default async function PlayerPage({
           <StatGrid stats={profile.stats} />
         </Section>
 
-        <Section title="Shot map">
-          {profile.shots.length > 0 ? (
-            <>
-              <PitchMap
-                title={`${profile.name} shots`}
-                events={profile.shots.map((shot) => ({
-                  x: shot.x,
-                  y: shot.y,
-                  kind: shot.goal ? "goal" : "event",
-                }))}
-              />
-              <p className="md-small" style={{ color: "var(--md-text-lo)", marginTop: "var(--space-3)" }}>
-                {profile.shots.length} shots from real StatsBomb event coordinates.
-                Magenta marks a goal. Attacking left to right.
-              </p>
-            </>
+        <Section title="Shots and passes">
+          {hasEvents ? (
+            <PitchViz
+              title={`${profile.name} events`}
+              shots={events.shots}
+              passes={events.passes}
+            />
           ) : (
             <p className="md-small" style={{ color: "var(--md-text-lo)" }}>
-              No shot coordinates are available for this player in the current data.
+              No event coordinates are available for this player in the current data.
+              This richness depends on the competition carrying event data.
             </p>
           )}
         </Section>

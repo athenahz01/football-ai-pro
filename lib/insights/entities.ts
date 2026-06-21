@@ -11,7 +11,6 @@ import type { SqlValue } from "@/lib/sql/types";
 // which the UI shows as not available rather than zero.
 
 const TIMEOUT_MS = 5_000;
-const SHOT_LIMIT = 400;
 
 export type EntityKind = "player" | "team";
 
@@ -24,12 +23,6 @@ export type FeaturedEntity = {
   metricLabel: string;
   metricValue: number;
   display: string;
-};
-
-export type ShotPoint = {
-  x: number;
-  y: number;
-  goal: boolean;
 };
 
 export type MatchResult = {
@@ -61,7 +54,6 @@ export type PlayerProfile = {
   teamName: string | null;
   country: string | null;
   stats: ProfileStats;
-  shots: ShotPoint[];
 };
 
 export type TeamProfile = {
@@ -74,7 +66,6 @@ export type TeamProfile = {
   country: string | null;
   stats: ProfileStats;
   recentMatches: MatchResult[];
-  shots: ShotPoint[];
 };
 
 export async function featuredPlayers(limit = 6): Promise<FeaturedEntity[]> {
@@ -266,7 +257,6 @@ export async function getPlayerProfile(
     return null;
   }
   const row = rows[0];
-  const shots = await getPlayerShots(playerId);
 
   return {
     kind: "player",
@@ -285,7 +275,6 @@ export async function getPlayerProfile(
       goals: toNumber(row.goals),
       passes: toNumber(row.passes),
     },
-    shots,
   };
 }
 
@@ -327,10 +316,7 @@ export async function getTeamProfile(teamId: string): Promise<TeamProfile | null
     return null;
   }
   const row = rows[0];
-  const [recentMatches, shots] = await Promise.all([
-    getTeamMatches(teamId),
-    getTeamShots(teamId),
-  ]);
+  const recentMatches = await getTeamMatches(teamId);
 
   return {
     kind: "team",
@@ -349,38 +335,7 @@ export async function getTeamProfile(teamId: string): Promise<TeamProfile | null
       passes: toNumber(row.passes),
     },
     recentMatches,
-    shots,
   };
-}
-
-async function getPlayerShots(playerId: string): Promise<ShotPoint[]> {
-  const rows = await runReadOnly(
-    `
-      select location_x, location_y, outcome
-      from match_events
-      where player_id = $1 and type = 'Shot'
-        and location_x is not null and location_y is not null
-      limit $2
-    `,
-    [playerId, SHOT_LIMIT],
-    SHOT_LIMIT,
-  );
-  return rows.map(toShotPoint);
-}
-
-async function getTeamShots(teamId: string): Promise<ShotPoint[]> {
-  const rows = await runReadOnly(
-    `
-      select location_x, location_y, outcome
-      from match_events
-      where team_id = $1 and type = 'Shot'
-        and location_x is not null and location_y is not null
-      limit $2
-    `,
-    [teamId, SHOT_LIMIT],
-    SHOT_LIMIT,
-  );
-  return rows.map(toShotPoint);
 }
 
 async function getTeamMatches(teamId: string): Promise<MatchResult[]> {
@@ -424,14 +379,6 @@ async function getTeamMatches(teamId: string): Promise<MatchResult[]> {
       result,
     };
   });
-}
-
-function toShotPoint(row: Record<string, SqlValue>): ShotPoint {
-  return {
-    x: toNumber(row.location_x) ?? 0,
-    y: toNumber(row.location_y) ?? 0,
-    goal: String(row.outcome ?? "") === "Goal",
-  };
 }
 
 async function runReadOnly(
