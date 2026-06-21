@@ -158,6 +158,39 @@
   color: var(--md-text-hi);
 }
 
+/* Radio based segmented control, for use inside a server rendered GET form. */
+.md-seg-radio {
+  position: relative;
+  display: inline-flex;
+}
+.md-seg-radio input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.md-seg-radio span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--r-sm);
+  font-family: var(--md-font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--md-text-mid);
+}
+.md-seg-radio input:checked + span {
+  background: var(--md-raised);
+  color: var(--md-text-hi);
+}
+.md-seg-radio input:focus-visible + span {
+  outline: 3px solid rgba(198, 255, 0, 0.25);
+  outline-offset: 2px;
+}
+
 /* ---------------- Underline tabs (desktop) ---------------- */
 .md-tabs {
   display: flex;
@@ -329,6 +362,74 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ---------------- Form fields ---------------- */
+.md-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--md-sunken);
+  color: var(--md-text-hi);
+  border: 1px solid var(--md-border);
+  border-radius: var(--r-md);
+  font-family: var(--md-font-ui);
+  font-size: 15px;
+}
+.md-input::placeholder {
+  color: var(--md-text-lo);
+}
+.md-input:focus-visible {
+  border-color: var(--md-volt);
+  outline: 3px solid rgba(198, 255, 0, 0.25);
+  outline-offset: 0;
+}
+.md-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--md-text-mid);
+  flex: 1;
+  min-width: 200px;
+}
+.md-form-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* A clearly styled "not available" state, never a zero. */
+.md-na {
+  color: var(--md-text-lo);
+  font-style: normal;
+}
+
+/* Generic dark data table for compare and scout. */
+.md-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.md-data-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--md-border);
+  color: var(--md-text-lo);
+  font-family: var(--md-font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.md-data-table td {
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--md-hairline);
+  color: var(--md-text-hi);
+}
+.md-data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------------- Select ---------------- */
@@ -735,6 +836,113 @@
 }
 .md-answer-ask {
   max-width: 640px;
+}
+
+/* ---------------- Replay player ---------------- */
+.md-replay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.md-replay-stage {
+  position: relative;
+  width: 100%;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--md-border);
+  background: var(--md-sunken);
+  box-shadow: var(--glow);
+}
+.md-hud {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.md-hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  background: rgba(10, 11, 13, 0.82);
+  border: 1px solid var(--md-hairline);
+  border-radius: var(--r-pill);
+  font-family: var(--md-font-ui);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--md-text-hi);
+}
+.md-hud-chip .v {
+  color: var(--md-volt);
+  font-variant-numeric: tabular-nums;
+}
+.md-replay-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+.md-scrub {
+  flex: 1;
+  min-width: 160px;
+  height: 28px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.md-scrub::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--md-bar-track);
+}
+.md-scrub::-moz-range-track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--md-bar-track);
+}
+.md-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--md-volt);
+  border: none;
+}
+.md-scrub::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--md-volt);
+  border: none;
+}
+.md-legend {
+  display: flex;
+  gap: var(--space-5);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--md-text-mid);
+}
+.md-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 /* ---------------- Footer ---------------- */

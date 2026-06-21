@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { Button } from "@/components/matchday/button";
+
 export type Entity = {
   id: string;
   name: string;
@@ -14,6 +16,10 @@ type FollowedItem = {
   name: string;
   createdAt: string;
 };
+
+// Following manager, restyled onto MATCHDAY. The follow and unfollow calls and the
+// personalized suggestions are unchanged; they still go through the existing follows
+// API, where the author comes from the session.
 
 export function FollowManager({
   initialFollows,
@@ -77,37 +83,69 @@ export function FollowManager({
   }
 
   return (
-    <div>
-      <section style={styles.section}>
-        <h2 style={styles.heading}>Your follows</h2>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <section>
+        <h2 className="md-title" style={{ marginBottom: "var(--space-3)" }}>
+          Your follows
+        </h2>
         {follows.length === 0 ? (
-          <p style={styles.empty}>
+          <p className="md-body" style={{ color: "var(--md-text-mid)" }}>
             You are not following anyone yet. Add a team or a player below.
           </p>
         ) : (
-          <ul style={styles.list}>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-3)",
+            }}
+          >
             {follows.map((item) => (
-              <li key={`${item.type}-${item.id}`} style={styles.item}>
-                <div style={styles.itemHeader}>
+              <li key={`${item.type}-${item.id}`} className="md-panel">
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "var(--space-3)",
+                  }}
+                >
                   <span>
-                    <strong>{item.name}</strong>
-                    <span style={styles.kind}>{item.type}</span>
+                    <strong style={{ color: "var(--md-text-hi)" }}>
+                      {item.name}
+                    </strong>
+                    <span
+                      className="md-overline"
+                      style={{ color: "var(--md-text-lo)", marginLeft: "var(--space-2)" }}
+                    >
+                      {item.type}
+                    </span>
                   </span>
-                  <button
-                    type="button"
-                    style={styles.unfollow}
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={busy}
                     onClick={() => mutate("DELETE", item.type, item.id)}
                   >
                     Unfollow
-                  </button>
+                  </Button>
                 </div>
-                <div style={styles.suggestions}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "var(--space-2)",
+                    marginTop: "var(--space-3)",
+                  }}
+                >
                   {suggestionsFor(item.name).map((question) => (
                     <Link
                       key={question}
                       href={`/ask?q=${encodeURIComponent(question)}`}
-                      style={styles.suggestion}
+                      className="md-chip"
                     >
                       {question}
                     </Link>
@@ -119,74 +157,83 @@ export function FollowManager({
         )}
       </section>
 
-      {error !== null ? <p style={styles.error}>{error}</p> : null}
+      {error !== null ? (
+        <p className="md-small" style={{ color: "var(--md-down)" }}>
+          {error}
+        </p>
+      ) : null}
 
-      <section style={styles.section}>
-        <h2 style={styles.heading}>Follow a team</h2>
-        <div style={styles.row}>
-          <select
-            style={styles.select}
-            value={teamChoice}
-            onChange={(event) => setTeamChoice(event.target.value)}
-          >
-            <option value="">Choose a team</option>
-            {teams.map((team) => (
-              <option
-                key={team.id}
-                value={team.id}
-                disabled={followedTeamIds.has(team.id)}
-              >
-                {team.name}
-                {followedTeamIds.has(team.id) ? " (following)" : ""}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            style={styles.followButton}
-            disabled={busy || teamChoice.length === 0}
-            onClick={() => mutate("POST", "team", teamChoice).then(() => setTeamChoice(""))}
-          >
-            Follow
-          </button>
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.heading}>Follow a player</h2>
-        <div style={styles.row}>
-          <select
-            style={styles.select}
-            value={playerChoice}
-            onChange={(event) => setPlayerChoice(event.target.value)}
-          >
-            <option value="">Choose a player</option>
-            {players.map((player) => (
-              <option
-                key={player.id}
-                value={player.id}
-                disabled={followedPlayerIds.has(player.id)}
-              >
-                {player.name}
-                {followedPlayerIds.has(player.id) ? " (following)" : ""}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            style={styles.followButton}
-            disabled={busy || playerChoice.length === 0}
-            onClick={() =>
-              mutate("POST", "player", playerChoice).then(() =>
-                setPlayerChoice(""),
-              )
-            }
-          >
-            Follow
-          </button>
-        </div>
-      </section>
+      <FollowPicker
+        heading="Follow a team"
+        choices={teams}
+        followed={followedTeamIds}
+        value={teamChoice}
+        onValue={setTeamChoice}
+        busy={busy}
+        onFollow={() => mutate("POST", "team", teamChoice).then(() => setTeamChoice(""))}
+      />
+      <FollowPicker
+        heading="Follow a player"
+        choices={players}
+        followed={followedPlayerIds}
+        value={playerChoice}
+        onValue={setPlayerChoice}
+        busy={busy}
+        onFollow={() =>
+          mutate("POST", "player", playerChoice).then(() => setPlayerChoice(""))
+        }
+      />
     </div>
+  );
+}
+
+function FollowPicker({
+  heading,
+  choices,
+  followed,
+  value,
+  onValue,
+  busy,
+  onFollow,
+}: {
+  heading: string;
+  choices: Entity[];
+  followed: Set<string>;
+  value: string;
+  onValue: (value: string) => void;
+  busy: boolean;
+  onFollow: () => void;
+}) {
+  return (
+    <section>
+      <h2 className="md-title" style={{ marginBottom: "var(--space-3)" }}>
+        {heading}
+      </h2>
+      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+        <select
+          className="md-select"
+          style={{ flex: 1, minWidth: "200px", height: "44px" }}
+          value={value}
+          onChange={(event) => onValue(event.target.value)}
+        >
+          <option value="">{heading.replace("Follow", "Choose")}</option>
+          {choices.map((choice) => (
+            <option key={choice.id} value={choice.id} disabled={followed.has(choice.id)}>
+              {choice.name}
+              {followed.has(choice.id) ? " (following)" : ""}
+            </option>
+          ))}
+        </select>
+        <Button
+          variant="primary"
+          size="lg"
+          disabled={busy || value.length === 0}
+          onClick={onFollow}
+        >
+          Follow
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -196,72 +243,3 @@ function suggestionsFor(name: string): string[] {
     `How many shots did ${name} attempt in the 2022 World Cup?`,
   ];
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  section: { marginBottom: "28px" },
-  heading: { fontSize: "16px", fontWeight: 600, marginBottom: "10px" },
-  empty: { color: "#555" },
-  list: { listStyle: "none", padding: 0, margin: 0 },
-  item: {
-    border: "1px solid #eee",
-    borderRadius: "8px",
-    padding: "12px 14px",
-    marginBottom: "10px",
-  },
-  itemHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  kind: {
-    marginLeft: "8px",
-    fontSize: "12px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-  },
-  suggestions: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
-    marginTop: "10px",
-  },
-  suggestion: {
-    fontSize: "13px",
-    color: "#333",
-    background: "#f3f3f3",
-    border: "1px solid #e2e2e2",
-    borderRadius: "999px",
-    padding: "6px 12px",
-    textDecoration: "none",
-  },
-  unfollow: {
-    padding: "6px 12px",
-    fontSize: "13px",
-    color: "#333",
-    background: "#fff",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  row: { display: "flex", gap: "8px" },
-  select: {
-    flex: 1,
-    padding: "10px 12px",
-    fontSize: "14px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    background: "#fff",
-  },
-  followButton: {
-    padding: "10px 18px",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#fff",
-    background: "#111",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  error: { color: "#b00020", marginBottom: "16px" },
-};

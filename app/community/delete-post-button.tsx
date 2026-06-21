@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Delete control for a post the signed in viewer owns. The detail page only renders
-// this when the server decided the session user is the author, and the delete
-// endpoint re checks ownership from the session, so the body can never authorize a
-// delete of someone else's post.
+import { Button } from "@/components/matchday/button";
+
+// Delete control for a post the signed in viewer owns, restyled onto MATCHDAY. The
+// detail page only renders this when the server decided the session user is the
+// author, and the delete endpoint re checks ownership from the session, so the body
+// can never authorize a delete of someone else's post.
 
 export function DeletePostButton({ id }: { id: string }) {
   const router = useRouter();
@@ -40,24 +42,15 @@ export function DeletePostButton({ id }: { id: string }) {
   }
 
   return (
-    <span>
-      <button type="button" onClick={remove} disabled={busy} style={styles.button}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+      <Button variant="secondary" size="sm" onClick={remove} disabled={busy}>
         {busy ? "Deleting" : "Delete this post"}
-      </button>
-      {error !== null ? <span style={styles.error}> {error}</span> : null}
+      </Button>
+      {error !== null ? (
+        <span className="md-small" style={{ color: "var(--md-down)" }}>
+          {error}
+        </span>
+      ) : null}
     </span>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  button: {
-    padding: "8px 16px",
-    fontSize: "13px",
-    color: "#333",
-    background: "#fff",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  error: { fontSize: "13px", color: "#b00020", marginLeft: "8px" },
-};

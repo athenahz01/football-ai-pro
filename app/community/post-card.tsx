@@ -7,12 +7,14 @@ import {
   metricDef,
 } from "@/lib/insights/metrics";
 import type { CommunityPost, RenderedPost } from "@/lib/community/service";
+import { Badge } from "@/components/matchday/badge";
+import { Leaderboard } from "@/components/matchday/dataviz/leaderboard";
 
-// Renders one community post from its live data. The post stored only parameters,
-// and the feed re ran the fixed read only queries to produce this rendered data, so
-// the numbers here are always real and current. Per source honesty is preserved: an
-// unavailable metric reads "not available", and a replay keeps its image space and
-// license labels.
+// Renders one community post from its live data, restyled onto MATCHDAY. The post
+// stored only parameters, and the feed re ran the fixed read only queries to produce
+// this rendered data, so the numbers here are always real and current. Per source
+// honesty is preserved: an unavailable metric reads "not available", and a replay
+// keeps its image space and license labels and the 3D TRACKING badge.
 
 export function PostCard({
   post,
@@ -24,32 +26,61 @@ export function PostCard({
   linkToDetail: boolean;
 }) {
   return (
-    <article style={styles.card}>
-      <div style={styles.metaRow}>
-        <span style={styles.kind}>{kindLabel(post.kind)}</span>
-        <span style={styles.meta}>
+    <article className="md-panel" style={{ marginBottom: "var(--space-4)" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "var(--space-3)",
+          marginBottom: "var(--space-3)",
+        }}
+      >
+        <span className="md-overline" style={{ color: "var(--md-text-mid)" }}>
+          {kindLabel(post.kind)}
+        </span>
+        <span className="md-small" style={{ color: "var(--md-text-lo)" }}>
           {post.authorLabel}, {post.viewCount}{" "}
           {post.viewCount === 1 ? "view" : "views"}
         </span>
       </div>
 
-      {post.caption ? <p style={styles.caption}>{post.caption}</p> : null}
+      {post.caption ? (
+        <p
+          className="md-body"
+          style={{ color: "var(--md-text-hi)", margin: "0 0 var(--space-3)" }}
+        >
+          {post.caption}
+        </p>
+      ) : null}
 
       {rendered.ok ? (
         <RenderedBody rendered={rendered} />
       ) : (
-        <p style={styles.note}>{rendered.reason}</p>
+        <p className="md-small" style={{ color: "var(--md-text-lo)" }}>
+          {rendered.reason}
+        </p>
       )}
 
-      <div style={styles.links}>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--space-5)",
+          marginTop: "var(--space-4)",
+        }}
+      >
         {linkToDetail ? (
-          <Link href={`/community/${post.id}`} style={styles.link}>
-            Open post
+          <Link href={`/community/${post.id}`} className="md-small" style={{ color: "var(--md-volt)" }}>
+            Open post {"→"}
           </Link>
         ) : null}
         {rendered.ok ? (
-          <Link href={sourceHref(post.kind, post.params)} style={styles.link}>
-            {openLabel(post.kind)}
+          <Link
+            href={sourceHref(post.kind, post.params)}
+            className="md-small"
+            style={{ color: "var(--md-text-mid)" }}
+          >
+            {openLabel(post.kind)} {"→"}
           </Link>
         ) : null}
       </div>
@@ -68,16 +99,16 @@ function RenderedBody({
     const available = availableMetrics(render.source, render.entityType);
     return (
       <>
-        <p style={styles.context}>
+        <p className="md-small" style={{ color: "var(--md-text-lo)", margin: "0 0 var(--space-3)" }}>
           {render.competitionName}
           {render.seasonName ? ` ${render.seasonName}` : ""}, source {render.source}
         </p>
-        <table style={styles.table}>
+        <table className="md-data-table">
           <thead>
             <tr>
-              <th style={styles.thMetric}>Metric</th>
-              <th style={styles.th}>{render.a.name}</th>
-              <th style={styles.th}>{render.b.name}</th>
+              <th>Metric</th>
+              <th className="num">{render.a.name}</th>
+              <th className="num">{render.b.name}</th>
             </tr>
           </thead>
           <tbody>
@@ -87,13 +118,9 @@ function RenderedBody({
               const bValue = isAvailable ? render.b.values[metric.key] ?? null : null;
               return (
                 <tr key={metric.key}>
-                  <td style={styles.tdMetric}>{metric.label}</td>
-                  <td style={valueStyle(aValue)}>
-                    {formatMetricValue(aValue, metric.key)}
-                  </td>
-                  <td style={valueStyle(bValue)}>
-                    {formatMetricValue(bValue, metric.key)}
-                  </td>
+                  <td style={{ color: "var(--md-text-mid)" }}>{metric.label}</td>
+                  <td className="num">{metricCell(aValue, metric.key)}</td>
+                  <td className="num">{metricCell(bValue, metric.key)}</td>
                 </tr>
               );
             })}
@@ -104,64 +131,61 @@ function RenderedBody({
   }
 
   if (render.kind === "leaderboard") {
-    const hasShots = render.rows.some((row) => row.shots !== null);
     return (
       <>
-        <p style={styles.context}>
+        <p className="md-small" style={{ color: "var(--md-text-lo)", margin: "0 0 var(--space-3)" }}>
           {render.competitionName}
           {render.seasonName ? ` ${render.seasonName}` : ""}, ranked by{" "}
           {metricDef(render.metric)?.label ?? render.metric}, source {render.source}
         </p>
         {render.rows.length === 0 ? (
-          <p style={styles.note}>This leaderboard has no rows right now.</p>
+          <p className="md-small" style={{ color: "var(--md-text-lo)" }}>
+            This leaderboard has no rows right now.
+          </p>
         ) : (
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.thRank}>#</th>
-                <th style={styles.thMetric}>
-                  {render.entityType === "players" ? "Player" : "Team"}
-                </th>
-                <th style={styles.th}>{metricDef(render.metric)?.label}</th>
-                {hasShots ? <th style={styles.th}>Shots</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {render.rows.map((row) => (
-                <tr key={`${row.rank}-${row.name}`}>
-                  <td style={styles.tdRank}>{row.rank}</td>
-                  <td style={styles.tdMetric}>{row.name}</td>
-                  <td style={styles.td}>
-                    {row.value.toFixed(metricDef(render.metric)?.decimals ?? 0)}
-                  </td>
-                  {hasShots ? <td style={styles.td}>{row.shots ?? ""}</td> : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Leaderboard
+            items={render.rows.map((row) => ({
+              label: row.name,
+              value: row.value,
+              display: row.value.toFixed(metricDef(render.metric)?.decimals ?? 0),
+            }))}
+          />
         )}
       </>
     );
   }
 
-  // Replay. A full Three.js canvas per feed card would be heavy, so the card shows a
-  // live summary read from the stored positions and links to the full viewer. The
-  // image space and license labels are kept honest here too.
+  // Replay. The card shows a live summary read from the stored positions and links to
+  // the full viewer. The image space and license labels and the 3D TRACKING badge are
+  // kept, since the proprietary tracking is the differentiator.
   const clip = render.clip;
   const dims =
     clip.width && clip.height ? `${clip.width} by ${clip.height}` : "the video";
   return (
     <>
-      <p style={styles.context}>
-        {clip.clipName}, {render.playerCount}{" "}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-2)",
+          marginBottom: "var(--space-3)",
+        }}
+      >
+        <Badge kind="tracking" />
+        <span className="md-small" style={{ color: "var(--md-text-mid)" }}>
+          {clip.clipName}
+        </span>
+      </div>
+      <p className="md-body" style={{ color: "var(--md-text-mid)", margin: 0 }}>
+        {render.playerCount}{" "}
         {render.playerCount === 1 ? "tracked player" : "tracked players"} and{" "}
-        {render.ballCount} ball over {render.frameCount} frames
+        {render.ballCount} ball over {render.frameCount} frames.
       </p>
-      <p style={styles.units}>
+      <p className="md-small" style={{ color: "var(--md-text-lo)", margin: "var(--space-2) 0 0" }}>
         Positions are image space, normalized to {dims} frame, not a real pitch in
         meters. This clip is {clip.calibrated ? "calibrated" : "not calibrated"}.
       </p>
-      <p style={styles.credit}>
+      <p className="md-small" style={{ color: "var(--md-text-lo)", margin: "var(--space-2) 0 0" }}>
         Source clip: {clip.clipName}
         {clip.author ? `, ${clip.author}` : ""}
         {clip.license ? `, ${clip.license}` : ""}
@@ -169,7 +193,7 @@ function RenderedBody({
           <>
             {" "}
             (
-            <a href={clip.licenseUrl} style={styles.link}>
+            <a href={clip.licenseUrl} style={{ color: "var(--md-text-mid)" }}>
               license
             </a>
             )
@@ -181,8 +205,11 @@ function RenderedBody({
   );
 }
 
-function valueStyle(value: number | null): React.CSSProperties {
-  return { ...styles.td, color: value === null ? "#999" : "#111" };
+function metricCell(value: number | null, key: (typeof METRICS)[number]["key"]) {
+  if (value === null) {
+    return <span className="md-na">not available</span>;
+  }
+  return <span className="md-ltr">{formatMetricValue(value, key)}</span>;
 }
 
 function kindLabel(kind: CommunityPost["kind"]): string {
@@ -209,40 +236,3 @@ function sourceHref(kind: CommunityPost["kind"], params: unknown): string {
   }
   return `/replay?clip=${get("clip")}`;
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  card: {
-    border: "1px solid #e6e6e6",
-    borderRadius: "10px",
-    padding: "16px 18px",
-    marginBottom: "16px",
-  },
-  metaRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "8px",
-  },
-  kind: {
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#444",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-  },
-  meta: { fontSize: "12px", color: "#888" },
-  caption: { fontSize: "15px", color: "#111", margin: "4px 0 12px" },
-  context: { fontSize: "13px", color: "#666", marginBottom: "10px" },
-  table: { borderCollapse: "collapse", width: "100%", fontSize: "14px" },
-  thRank: { textAlign: "left", borderBottom: "2px solid #ddd", padding: "8px", width: "36px" },
-  thMetric: { textAlign: "left", borderBottom: "2px solid #ddd", padding: "8px" },
-  th: { textAlign: "right", borderBottom: "2px solid #ddd", padding: "8px" },
-  tdRank: { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px", color: "#999" },
-  tdMetric: { textAlign: "left", borderBottom: "1px solid #eee", padding: "8px", color: "#555" },
-  td: { textAlign: "right", borderBottom: "1px solid #eee", padding: "8px" },
-  units: { fontSize: "13px", color: "#555", marginTop: "10px", lineHeight: 1.5 },
-  credit: { fontSize: "12px", color: "#888", marginTop: "8px", lineHeight: 1.5 },
-  note: { fontSize: "14px", color: "#777", marginTop: "8px" },
-  links: { display: "flex", gap: "16px", marginTop: "12px", fontSize: "14px" },
-  link: { color: "#333" },
-};

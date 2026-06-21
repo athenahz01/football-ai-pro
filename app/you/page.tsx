@@ -3,33 +3,44 @@ import Link from "next/link";
 import { listFollows } from "@/lib/follows/service";
 import { executeSqlInReadOnlyTransaction } from "@/lib/sql/executor";
 import { getAuthenticatedUser } from "@/lib/supabase/server-client";
+import { PanelCard } from "@/components/matchday/cards";
 
 import { FollowManager, type Entity } from "./follow-manager";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// The profile and following screen, restyled onto MATCHDAY. The data still comes from
+// the existing read only query layer and the follows service; only the look changes.
+
 export default async function YouPage() {
   const user = await getAuthenticatedUser();
 
   if (!user) {
     return (
-      <main style={styles.main}>
-        <h1 style={styles.title}>Following</h1>
-        <p style={styles.subtitle}>
-          Sign in to follow teams and players and get a personalized starting
-          point.
-        </p>
-        <p>
-          <Link href="/auth" style={styles.link}>
-            Sign in
-          </Link>
-          {" or "}
-          <Link href="/ask" style={styles.link}>
-            keep asking questions
-          </Link>
-          .
-        </p>
+      <main className="md-screen">
+        <div className="md-container" style={{ maxWidth: "560px" }}>
+          <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
+            Your profile
+          </span>
+          <h1 className="md-display-3" style={{ margin: "var(--space-2) 0 var(--space-3)" }}>
+            Following
+          </h1>
+          <PanelCard>
+            <p className="md-body" style={{ color: "var(--md-text-mid)", marginTop: 0 }}>
+              Sign in to follow teams and players and get a personalized starting
+              point.
+            </p>
+            <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
+              <Link href="/auth" className="md-btn md-btn--primary md-btn--md">
+                Sign in
+              </Link>
+              <Link href="/ask" className="md-btn md-btn--ghost md-btn--md">
+                Keep asking
+              </Link>
+            </div>
+          </PanelCard>
+        </div>
       </main>
     );
   }
@@ -42,19 +53,24 @@ export default async function YouPage() {
   ]);
 
   return (
-    <main style={styles.main}>
-      <h1 style={styles.title}>Following</h1>
-      <p style={styles.subtitle}>
-        Follow the teams and players you care about. Each one gives you ready
-        made questions that run through the same grounded pipeline as anything
-        else you ask.
-      </p>
-      <p style={styles.back}>
-        <Link href="/ask" style={styles.link}>
-          Back to asking questions
-        </Link>
-      </p>
-      <FollowManager initialFollows={follows} teams={teams} players={players} />
+    <main className="md-screen">
+      <div className="md-container" style={{ maxWidth: "760px" }}>
+        <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
+          Your profile
+        </span>
+        <h1 className="md-display-3" style={{ margin: "var(--space-2) 0 var(--space-3)" }}>
+          Following
+        </h1>
+        <p
+          className="md-body"
+          style={{ color: "var(--md-text-mid)", marginBottom: "var(--space-5)" }}
+        >
+          Follow the teams and players you care about. Each one gives you ready
+          made questions that run through the same grounded pipeline as anything
+          else you ask.
+        </p>
+        <FollowManager initialFollows={follows} teams={teams} players={players} />
+      </div>
     </main>
   );
 }
@@ -78,17 +94,3 @@ async function readEntities(
     name: String(row.name),
   }));
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  main: {
-    maxWidth: "760px",
-    margin: "0 auto",
-    padding: "48px 24px",
-    fontFamily: "system-ui, sans-serif",
-    color: "#111",
-  },
-  title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
-  subtitle: { color: "#555", marginBottom: "16px", lineHeight: 1.5 },
-  back: { fontSize: "14px", marginBottom: "24px" },
-  link: { color: "#333" },
-};

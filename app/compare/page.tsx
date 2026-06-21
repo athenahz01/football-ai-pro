@@ -1,10 +1,9 @@
-import Link from "next/link";
-
 import {
   availableMetrics,
   formatMetricValue,
   METRICS,
   type EntityType,
+  type MetricKey,
 } from "@/lib/insights/metrics";
 import {
   getCompetition,
@@ -18,6 +17,10 @@ import { ShareToCommunity } from "@/app/community/share-to-community";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Compare, restyled onto MATCHDAY. The data still comes from the existing fixed read
+// only insights queries. Per source honesty is preserved: a metric a feed does not
+// carry reads "not available", never zero.
 
 export default async function ComparePage({
   searchParams,
@@ -55,213 +58,225 @@ export default async function ComparePage({
       : null;
 
   const signedIn = (await getAuthenticatedUser()) !== null;
+  const available = competition
+    ? availableMetrics(competition.source, entityType)
+    : [];
+  const headlineMetric = available[0];
 
   return (
-    <main style={styles.main}>
-      <nav style={styles.nav}>
-        <Link href="/ask" style={styles.navLink}>
-          Ask
-        </Link>
-        <Link href="/scout" style={styles.navLink}>
-          Scout
-        </Link>
-        <Link href="/replay" style={styles.navLink}>
-          Replay
-        </Link>
-        <Link href="/community" style={styles.navLink}>
-          Community
-        </Link>
-      </nav>
-
-      <h1 style={styles.title}>Compare</h1>
-      <p style={styles.subtitle}>
-        Pick two players or two teams in a competition and see them side by side.
-        Every number is read directly from the database. A metric that a feed does
-        not provide is shown as not available, never as zero.
-      </p>
-
-      <form method="get" style={styles.form}>
-        <div style={styles.row}>
-          <label style={styles.label}>
-            Competition
-            <select name="competition" defaultValue={competitionId} style={styles.select}>
-              <option value="">Choose a competition</option>
-              {competitions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                  {option.seasonName ? ` ${option.seasonName}` : ""} ({option.source})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label style={styles.label}>
-            Compare
-            <select name="type" defaultValue={entityType} style={styles.select}>
-              <option value="players">Players</option>
-              <option value="teams">Teams</option>
-            </select>
-          </label>
-        </div>
-
-        {competition ? (
-          entities.length > 0 ? (
-            <div style={styles.row}>
-              <label style={styles.label}>
-                First
-                <select name="a" defaultValue={aId} style={styles.select}>
-                  <option value="">Choose</option>
-                  {entities.map((entity) => (
-                    <option key={entity.id} value={entity.id}>
-                      {entity.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={styles.label}>
-                Second
-                <select name="b" defaultValue={bId} style={styles.select}>
-                  <option value="">Choose</option>
-                  {entities.map((entity) => (
-                    <option key={entity.id} value={entity.id}>
-                      {entity.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : (
-            <p style={styles.note}>
-              No {entityType} are available for this competition. This feed does not
-              provide that data.
-            </p>
-          )
-        ) : null}
-
-        <button type="submit" style={styles.button}>
+    <main className="md-screen">
+      <div className="md-container" style={{ maxWidth: "820px" }}>
+        <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
+          Head to head
+        </span>
+        <h1 className="md-display-3" style={{ margin: "var(--space-2) 0 var(--space-3)" }}>
           Compare
-        </button>
-        {competition && entities.length > 0 && !pair ? (
-          <span style={styles.hint}>
-            Pick both, then compare. If you just changed the competition, the choices
-            above are now loaded.
-          </span>
-        ) : null}
-      </form>
+        </h1>
+        <p
+          className="md-body"
+          style={{ color: "var(--md-text-mid)", marginBottom: "var(--space-5)" }}
+        >
+          Pick two players or two teams in a competition and see them side by side.
+          Every number is read directly from the database. A metric that a feed does
+          not provide is shown as not available, never as zero.
+        </p>
 
-      {pair && competition ? (
-        <section style={styles.result}>
-          <p style={styles.context}>
-            {competition.name}
-            {competition.seasonName ? ` ${competition.seasonName}` : ""}, source{" "}
-            {competition.source}
-          </p>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.thMetric}>Metric</th>
-                <th style={styles.th}>{pair.a.name}</th>
-                <th style={styles.th}>{pair.b.name}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {METRICS.map((metric) => {
-                const available = availableMetrics(
-                  competition.source,
-                  entityType,
-                ).includes(metric.key);
-                const aValue = available ? pair.a.values[metric.key] ?? null : null;
-                const bValue = available ? pair.b.values[metric.key] ?? null : null;
-                return (
-                  <tr key={metric.key}>
-                    <td style={styles.tdMetric}>{metric.label}</td>
-                    <td style={cellStyle(aValue, bValue)}>
-                      {formatMetricValue(aValue, metric.key)}
-                    </td>
-                    <td style={cellStyle(bValue, aValue)}>
-                      {formatMetricValue(bValue, metric.key)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {shareHref ? (
-            <p style={styles.share}>
-              <a href={shareHref} style={styles.link}>
-                Open shareable card
-              </a>
-              , a downloadable image of these numbers.
-            </p>
+        <form
+          method="get"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-4)",
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          <div className="md-form-row">
+            <label className="md-field">
+              Competition
+              <select name="competition" defaultValue={competitionId} className="md-select" style={{ height: "44px" }}>
+                <option value="">Choose a competition</option>
+                {competitions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                    {option.seasonName ? ` ${option.seasonName}` : ""} ({option.source})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="md-field" style={{ flex: "0 0 auto" }}>
+              Compare
+              <TypeSegment value={entityType} />
+            </div>
+          </div>
+
+          {competition ? (
+            entities.length > 0 ? (
+              <div className="md-form-row">
+                <label className="md-field">
+                  First
+                  <select name="a" defaultValue={aId} className="md-select" style={{ height: "44px" }}>
+                    <option value="">Choose</option>
+                    {entities.map((entity) => (
+                      <option key={entity.id} value={entity.id}>
+                        {entity.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="md-field">
+                  Second
+                  <select name="b" defaultValue={bId} className="md-select" style={{ height: "44px" }}>
+                    <option value="">Choose</option>
+                    {entities.map((entity) => (
+                      <option key={entity.id} value={entity.id}>
+                        {entity.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <p className="md-small" style={{ color: "var(--md-amber)" }}>
+                No {entityType} are available for this competition. This feed does not
+                provide that data.
+              </p>
+            )
           ) : null}
-          <ShareToCommunity
-            kind="comparison"
-            params={{ competition: competition.id, type: entityType, a: aId, b: bId }}
-            signedIn={signedIn}
-          />
-        </section>
-      ) : null}
+
+          <button type="submit" className="md-btn md-btn--primary md-btn--md" style={{ alignSelf: "flex-start" }}>
+            Compare
+          </button>
+        </form>
+
+        {pair && competition ? (
+          <section>
+            <p className="md-small" style={{ color: "var(--md-text-lo)", marginBottom: "var(--space-4)" }}>
+              {competition.name}
+              {competition.seasonName ? ` ${competition.seasonName}` : ""}, source{" "}
+              {competition.source}
+            </p>
+
+            {headlineMetric ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "var(--space-4)",
+                  marginBottom: "var(--space-5)",
+                }}
+              >
+                <HeadlineCard name={pair.a.name} metric={headlineMetric} value={pair.a.values[headlineMetric] ?? null} />
+                <HeadlineCard name={pair.b.name} metric={headlineMetric} value={pair.b.values[headlineMetric] ?? null} />
+              </div>
+            ) : null}
+
+            <div className="md-panel">
+              <table className="md-data-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th className="num">{pair.a.name}</th>
+                    <th className="num">{pair.b.name}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {METRICS.map((metric) => {
+                    const isAvailable = available.includes(metric.key);
+                    const aValue = isAvailable ? pair.a.values[metric.key] ?? null : null;
+                    const bValue = isAvailable ? pair.b.values[metric.key] ?? null : null;
+                    return (
+                      <tr key={metric.key}>
+                        <td style={{ color: "var(--md-text-mid)" }}>{metric.label}</td>
+                        <td className="num" style={cellColor(aValue, bValue)}>
+                          {cell(aValue, metric.key)}
+                        </td>
+                        <td className="num" style={cellColor(bValue, aValue)}>
+                          {cell(bValue, metric.key)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {shareHref ? (
+              <p className="md-small" style={{ color: "var(--md-text-mid)", marginTop: "var(--space-4)" }}>
+                <a href={shareHref} style={{ color: "var(--md-volt)" }}>
+                  Open shareable card
+                </a>
+                , a downloadable image of these numbers.
+              </p>
+            ) : null}
+
+            <ShareToCommunity
+              kind="comparison"
+              params={{ competition: competition.id, type: entityType, a: aId, b: bId }}
+              signedIn={signedIn}
+            />
+          </section>
+        ) : null}
+      </div>
     </main>
   );
 }
 
-function cellStyle(
-  value: number | null,
-  other: number | null,
-): React.CSSProperties {
+function TypeSegment({ value }: { value: EntityType }) {
+  return (
+    <div className="md-seg" role="group" aria-label="Compare players or teams">
+      <label className="md-seg-radio">
+        <input type="radio" name="type" value="players" defaultChecked={value === "players"} />
+        <span>Players</span>
+      </label>
+      <label className="md-seg-radio">
+        <input type="radio" name="type" value="teams" defaultChecked={value === "teams"} />
+        <span>Teams</span>
+      </label>
+    </div>
+  );
+}
+
+function HeadlineCard({
+  name,
+  metric,
+  value,
+}: {
+  name: string;
+  metric: MetricKey;
+  value: number | null;
+}) {
+  return (
+    <div className="md-statcard">
+      <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
+        {name}
+      </span>
+      <span className="md-stat-xl" style={{ color: "var(--md-volt)" }}>
+        <span className="md-ltr">
+          {value === null ? "n/a" : formatMetricValue(value, metric)}
+        </span>
+      </span>
+      <span className="md-small" style={{ color: "var(--md-text-mid)" }}>
+        {METRICS.find((m) => m.key === metric)?.label}
+      </span>
+    </div>
+  );
+}
+
+function cell(value: number | null, key: MetricKey) {
+  if (value === null) {
+    return <span className="md-na">not available</span>;
+  }
+  return <span className="md-ltr">{formatMetricValue(value, key)}</span>;
+}
+
+function cellColor(value: number | null, other: number | null): React.CSSProperties {
   const isHigher = value !== null && other !== null && value > other;
   return {
-    ...styles.td,
+    color: value === null ? "var(--md-text-lo)" : "var(--md-text-hi)",
     fontWeight: isHigher ? 700 : 400,
-    color: value === null ? "#999" : "#111",
   };
 }
 
 function readParam(value: string | string[] | undefined): string {
   return typeof value === "string" ? value : "";
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  main: {
-    maxWidth: "760px",
-    margin: "0 auto",
-    padding: "32px 24px 48px",
-    fontFamily: "system-ui, sans-serif",
-    color: "#111",
-  },
-  nav: { display: "flex", gap: "16px", marginBottom: "16px", fontSize: "14px" },
-  navLink: { color: "#333" },
-  title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
-  subtitle: { color: "#555", marginBottom: "20px", lineHeight: 1.5 },
-  form: { display: "flex", flexDirection: "column", gap: "12px", marginBottom: "8px" },
-  row: { display: "flex", gap: "12px", flexWrap: "wrap" },
-  label: { display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px", color: "#555", flex: 1, minWidth: "200px" },
-  select: {
-    padding: "10px 12px",
-    fontSize: "14px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    background: "#fff",
-  },
-  button: {
-    alignSelf: "flex-start",
-    padding: "10px 20px",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#fff",
-    background: "#111",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  hint: { fontSize: "12px", color: "#888" },
-  note: { fontSize: "14px", color: "#b00020" },
-  result: { marginTop: "24px" },
-  context: { fontSize: "13px", color: "#666", marginBottom: "12px" },
-  table: { borderCollapse: "collapse", width: "100%", fontSize: "15px" },
-  thMetric: { textAlign: "left", borderBottom: "2px solid #ddd", padding: "10px 8px", width: "40%" },
-  th: { textAlign: "right", borderBottom: "2px solid #ddd", padding: "10px 8px" },
-  tdMetric: { textAlign: "left", borderBottom: "1px solid #eee", padding: "10px 8px", color: "#555" },
-  td: { textAlign: "right", borderBottom: "1px solid #eee", padding: "10px 8px" },
-  share: { marginTop: "16px", fontSize: "14px", color: "#555" },
-  link: { color: "#333" },
-};

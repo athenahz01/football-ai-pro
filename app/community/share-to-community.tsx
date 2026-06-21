@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { PostKind } from "@/lib/community/service";
+import { Button } from "@/components/matchday/button";
 
-// The share to community action for the comparison, scouting, and replay pages. It
-// posts the current view's parameters, never numbers, to the community endpoint,
-// where the author is taken from the session. Signed out users get a clean sign in
-// prompt rather than a broken action.
+// The share to community action for the comparison, scouting, and replay pages,
+// restyled onto MATCHDAY. It posts the current view's parameters, never numbers, to
+// the community endpoint, where the author is taken from the session. Signed out
+// users get a clean sign in prompt rather than a broken action.
 
 export function ShareToCommunity({
   kind,
@@ -26,8 +27,11 @@ export function ShareToCommunity({
 
   if (!signedIn) {
     return (
-      <p style={styles.prompt}>
-        <Link href="/auth" style={styles.link}>
+      <p
+        className="md-small"
+        style={{ color: "var(--md-text-mid)", marginTop: "var(--space-4)" }}
+      >
+        <Link href="/auth" style={{ color: "var(--md-volt)" }}>
           Sign in
         </Link>{" "}
         to share this to the community feed.
@@ -37,13 +41,16 @@ export function ShareToCommunity({
 
   if (sharedId !== null) {
     return (
-      <p style={styles.shared}>
+      <p
+        className="md-small"
+        style={{ color: "var(--md-text-mid)", marginTop: "var(--space-4)" }}
+      >
         Shared.{" "}
-        <Link href={`/community/${sharedId}`} style={styles.link}>
+        <Link href={`/community/${sharedId}`} style={{ color: "var(--md-volt)" }}>
           View your post
         </Link>{" "}
         or open the{" "}
-        <Link href="/community" style={styles.link}>
+        <Link href="/community" style={{ color: "var(--md-volt)" }}>
           community feed
         </Link>
         .
@@ -82,57 +89,41 @@ export function ShareToCommunity({
   }
 
   return (
-    <div style={styles.box}>
-      <label style={styles.label}>
+    <div
+      className="md-panel"
+      style={{
+        marginTop: "var(--space-4)",
+        maxWidth: "440px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-3)",
+      }}
+    >
+      <label className="md-field" style={{ minWidth: 0 }}>
         Share this to the community
         <input
+          className="md-input"
           type="text"
           value={caption}
           maxLength={280}
           placeholder="Add an optional caption"
           onChange={(event) => setCaption(event.target.value)}
-          style={styles.input}
         />
       </label>
-      <button type="button" onClick={share} disabled={busy} style={styles.button}>
+      <Button
+        variant="primary"
+        size="md"
+        onClick={share}
+        disabled={busy}
+        style={{ alignSelf: "flex-start" }}
+      >
         {busy ? "Sharing" : "Share to community"}
-      </button>
-      {error !== null ? <span style={styles.error}>{error}</span> : null}
+      </Button>
+      {error !== null ? (
+        <span className="md-small" style={{ color: "var(--md-down)" }}>
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  box: {
-    marginTop: "16px",
-    padding: "14px",
-    border: "1px solid #eee",
-    borderRadius: "8px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    maxWidth: "420px",
-  },
-  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", color: "#555" },
-  input: {
-    padding: "10px 12px",
-    fontSize: "14px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-  },
-  button: {
-    alignSelf: "flex-start",
-    padding: "9px 18px",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#fff",
-    background: "#111",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  prompt: { marginTop: "16px", fontSize: "14px", color: "#555" },
-  shared: { marginTop: "16px", fontSize: "14px", color: "#555", lineHeight: 1.5 },
-  link: { color: "#333" },
-  error: { fontSize: "13px", color: "#b00020" },
-};

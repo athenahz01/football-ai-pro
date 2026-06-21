@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { Button } from "@/components/matchday/button";
+import { PanelCard } from "@/components/matchday/cards";
 
 type Mode = "sign-in" | "sign-up";
+
+// Sign in and sign up on the dark MATCHDAY canvas. The auth logic is unchanged; only
+// the presentation is restyled. The product still works signed out.
 
 export default function AuthPage() {
   const router = useRouter();
@@ -73,109 +78,117 @@ export default function AuthPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <h1 style={styles.title}>
-        {mode === "sign-in" ? "Sign in" : "Create an account"}
-      </h1>
-      <p style={styles.subtitle}>
-        You can use Football AI Pro without an account. Signing in gives you a
-        higher request limit and, soon, personalized following.
-      </p>
+    <main className="md-screen">
+      <div className="md-container" style={{ maxWidth: "460px" }}>
+        <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
+          MATCHDAY
+        </span>
+        <h1 className="md-display-3" style={{ margin: "var(--space-2) 0 var(--space-3)" }}>
+          {mode === "sign-in" ? "Sign in" : "Create an account"}
+        </h1>
+        <p
+          className="md-body"
+          style={{ color: "var(--md-text-mid)", marginBottom: "var(--space-6)" }}
+        >
+          You can use Football AI Pro without an account. Signing in gives you a
+          higher request limit and personalized following.
+        </p>
 
-      <form style={styles.form} onSubmit={submit}>
-        <input
-          style={styles.input}
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          placeholder="you@example.com"
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <input
-          style={styles.input}
-          type="password"
-          autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-          required
-          minLength={6}
-          value={password}
-          placeholder="Password"
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        <button style={styles.button} type="submit" disabled={loading}>
-          {loading
-            ? "Working"
-            : mode === "sign-in"
-              ? "Sign in"
-              : "Create account"}
+        <PanelCard>
+          <form
+            onSubmit={submit}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-3)",
+            }}
+          >
+            <label className="md-field" style={{ minWidth: 0 }}>
+              Email
+              <input
+                className="md-input"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                placeholder="you@example.com"
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+            <label className="md-field" style={{ minWidth: 0 }}>
+              Password
+              <input
+                className="md-input"
+                type="password"
+                autoComplete={
+                  mode === "sign-in" ? "current-password" : "new-password"
+                }
+                required
+                minLength={6}
+                value={password}
+                placeholder="At least 6 characters"
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              glow
+              disabled={loading}
+              style={{ width: "100%" }}
+            >
+              {loading
+                ? "Working"
+                : mode === "sign-in"
+                  ? "Sign in"
+                  : "Create account"}
+            </Button>
+          </form>
+
+          {error !== null ? (
+            <p
+              className="md-small"
+              style={{ color: "var(--md-down)", marginTop: "var(--space-3)" }}
+            >
+              {error}
+            </p>
+          ) : null}
+          {notice !== null ? (
+            <p
+              className="md-small"
+              style={{ color: "var(--md-up)", marginTop: "var(--space-3)" }}
+            >
+              {notice}
+            </p>
+          ) : null}
+        </PanelCard>
+
+        <button
+          type="button"
+          className="md-btn md-btn--ghost md-btn--sm"
+          style={{ marginTop: "var(--space-4)" }}
+          onClick={() => {
+            setMode(mode === "sign-in" ? "sign-up" : "sign-in");
+            setError(null);
+            setNotice(null);
+          }}
+        >
+          {mode === "sign-in"
+            ? "Need an account? Create one"
+            : "Already have an account? Sign in"}
         </button>
-      </form>
 
-      {error !== null ? <p style={styles.error}>{error}</p> : null}
-      {notice !== null ? <p style={styles.notice}>{notice}</p> : null}
-
-      <button
-        type="button"
-        style={styles.switch}
-        onClick={() => {
-          setMode(mode === "sign-in" ? "sign-up" : "sign-in");
-          setError(null);
-          setNotice(null);
-        }}
-      >
-        {mode === "sign-in"
-          ? "Need an account? Create one"
-          : "Already have an account? Sign in"}
-      </button>
-
-      <p style={styles.back}>
-        <Link href="/ask" style={styles.link}>
-          Back to asking questions
-        </Link>
-      </p>
+        <p style={{ marginTop: "var(--space-5)" }}>
+          <Link
+            href="/ask"
+            className="md-small"
+            style={{ color: "var(--md-text-mid)" }}
+          >
+            Back to asking questions
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  main: {
-    maxWidth: "420px",
-    margin: "0 auto",
-    padding: "48px 24px",
-    fontFamily: "system-ui, sans-serif",
-    color: "#111",
-  },
-  title: { fontSize: "28px", fontWeight: 700, marginBottom: "8px" },
-  subtitle: { color: "#555", marginBottom: "24px", lineHeight: 1.5 },
-  form: { display: "flex", flexDirection: "column", gap: "10px" },
-  input: {
-    padding: "12px 14px",
-    fontSize: "15px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-  },
-  button: {
-    padding: "12px 20px",
-    fontSize: "15px",
-    fontWeight: 600,
-    color: "#fff",
-    background: "#111",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  error: { color: "#b00020", marginTop: "12px" },
-  notice: { color: "#1a7f37", marginTop: "12px", lineHeight: 1.5 },
-  switch: {
-    marginTop: "16px",
-    padding: 0,
-    fontSize: "14px",
-    color: "#333",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    textDecoration: "underline",
-  },
-  back: { marginTop: "24px", fontSize: "14px" },
-  link: { color: "#333" },
-};

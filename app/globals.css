@@ -278,24 +278,3 @@ button {
     scroll-behavior: auto !important;
   }
 }
-
-/*
-  Transitional legibility shim for screens not yet restyled in this chunk (compare,
-  scout, replay, community, profile, auth). They still use their original light inline
-  styles, which would be unreadable on the dark canvas. Until chunk 2 restyles them,
-  present them as a light card cleared of the fixed navs, and hide their now duplicate
-  inline nav since the global MATCHDAY nav supersedes it. No legacy file is edited.
-*/
-main:not(.md-screen) {
-  background: #ffffff !important;
-  color: #111111 !important;
-  border-radius: var(--r-lg);
-  margin-top: calc(var(--md-topnav-h) + var(--space-4)) !important;
-  margin-bottom: calc(
-    var(--md-bottomnav-h) + env(safe-area-inset-bottom) + var(--space-6)
-  ) !important;
-}
-
-main:not(.md-screen) > nav:first-of-type {
-  display: none !important;
-}
