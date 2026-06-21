@@ -14,6 +14,8 @@ import {
 } from "@/lib/insights/queries";
 import { getAuthenticatedUser } from "@/lib/supabase/server-client";
 import { ShareToCommunity } from "@/app/community/share-to-community";
+import { EntityIdentity } from "@/components/matchday/entity-identity";
+import { EntityLink } from "@/components/matchday/entity-link";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +64,7 @@ export default async function ComparePage({
     ? availableMetrics(competition.source, entityType)
     : [];
   const headlineMetric = available[0];
+  const entityKind = entityType === "players" ? "player" : "team";
 
   return (
     <main className="md-screen">
@@ -165,8 +168,8 @@ export default async function ComparePage({
                   marginBottom: "var(--space-5)",
                 }}
               >
-                <HeadlineCard name={pair.a.name} metric={headlineMetric} value={pair.a.values[headlineMetric] ?? null} />
-                <HeadlineCard name={pair.b.name} metric={headlineMetric} value={pair.b.values[headlineMetric] ?? null} />
+                <HeadlineCard kind={entityKind} id={aId} name={pair.a.name} metric={headlineMetric} value={pair.a.values[headlineMetric] ?? null} />
+                <HeadlineCard kind={entityKind} id={bId} name={pair.b.name} metric={headlineMetric} value={pair.b.values[headlineMetric] ?? null} />
               </div>
             ) : null}
 
@@ -175,8 +178,12 @@ export default async function ComparePage({
                 <thead>
                   <tr>
                     <th>Metric</th>
-                    <th className="num">{pair.a.name}</th>
-                    <th className="num">{pair.b.name}</th>
+                    <th className="num">
+                      <EntityLink kind={entityKind} id={aId} name={pair.a.name} />
+                    </th>
+                    <th className="num">
+                      <EntityLink kind={entityKind} id={bId} name={pair.b.name} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,18 +244,23 @@ function TypeSegment({ value }: { value: EntityType }) {
 }
 
 function HeadlineCard({
+  kind,
+  id,
   name,
   metric,
   value,
 }: {
+  kind: "player" | "team";
+  id: string;
   name: string;
   metric: MetricKey;
   value: number | null;
 }) {
   return (
     <div className="md-statcard">
-      <span className="md-overline" style={{ color: "var(--md-text-lo)" }}>
-        {name}
+      <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <EntityIdentity name={name} kind={kind} size="sm" />
+        <EntityLink kind={kind} id={id} name={name} />
       </span>
       <span className="md-stat-xl" style={{ color: "var(--md-volt)" }}>
         <span className="md-ltr">

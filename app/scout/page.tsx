@@ -11,8 +11,9 @@ import {
   type LeaderboardRow,
 } from "@/lib/insights/queries";
 import { getAuthenticatedUser } from "@/lib/supabase/server-client";
+import { resolveEntities } from "@/lib/insights/entities";
 import { ShareToCommunity } from "@/app/community/share-to-community";
-import { Leaderboard } from "@/components/matchday/dataviz/leaderboard";
+import { EntityLeaderboard } from "@/components/matchday/dataviz/entity-leaderboard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,11 @@ export default async function ScoutPage({
   if (competition && metric) {
     rows = await leaderboard(competition, entityType, metric, minShots, RESULT_LIMIT);
   }
+
+  // Resolve the ranked names to profiles so each row is tappable.
+  const kind = entityType === "players" ? "player" : "team";
+  const resolved = rows.length > 0 ? await resolveEntities(rows.map((row) => row.name)) : [];
+  const refByName = new Map(resolved.filter((entity) => entity.kind === kind).map((entity) => [entity.name, entity]));
 
   const hasShots = rows.some((row) => row.shots !== null);
   const signedIn = (await getAuthenticatedUser()) !== null;
@@ -158,14 +164,18 @@ export default async function ScoutPage({
               </p>
             ) : (
               <div className="md-panel">
-                <Leaderboard
-                  items={rows.map((row) => ({
-                    label: hasShots && row.shots !== null
-                      ? `${row.name}  (${row.shots} shots)`
-                      : row.name,
-                    value: row.value,
-                    display: row.value.toFixed(decimals),
-                  }))}
+                <EntityLeaderboard
+                  items={rows.map((row) => {
+                    const ref = refByName.get(row.name);
+                    return {
+                      name: row.name,
+                      value: row.value,
+                      display: row.value.toFixed(decimals),
+                      kind: ref?.kind,
+                      id: ref?.id,
+                      note: hasShots && row.shots !== null ? `${row.shots} shots` : undefined,
+                    };
+                  })}
                 />
               </div>
             )}
