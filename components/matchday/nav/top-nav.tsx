@@ -10,12 +10,13 @@ import { NavAsk } from "./nav-ask";
 // Volt underline on the active route, the persistent Ask field, a Go Pro affordance,
 // and the account chip. Links use the client router, so there is no full reload.
 
+// The spine on desktop: the wordmark home, a compact set of links (Home and your
+// world), and the persistent Ask field that is always present. Compare, Scout, and
+// Replay are reached in context, not as cold tabs.
 const LINKS = [
-  { href: "/ask", label: "Ask" },
-  { href: "/compare", label: "Compare" },
-  { href: "/scout", label: "Scout" },
-  { href: "/replay", label: "Replay" },
-  { href: "/community", label: "Feed" },
+  { href: "/", label: "Home", exact: true },
+  { href: "/community", label: "Feed", exact: false },
+  { href: "/you", label: "Your world", exact: false },
 ];
 
 export function TopNav() {
@@ -28,10 +29,9 @@ export function TopNav() {
       </Link>
       <nav className="md-topnav-links" aria-label="Primary">
         {LINKS.map((link) => {
-          const active =
-            link.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(link.href);
+          const active = link.exact
+            ? pathname === link.href
+            : pathname.startsWith(link.href);
           return (
             <Link
               key={link.href}

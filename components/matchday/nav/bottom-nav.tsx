@@ -3,40 +3,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import {
-  CompareIcon,
-  FeedIcon,
-  ReplayIcon,
-  YouIcon,
-  AskArrowIcon,
-} from "../icons";
+import { HomeIcon, FeedIcon, YouIcon, AskArrowIcon } from "../icons";
 
-// Mobile bottom tab bar, fixed, 62px plus the safe area inset. Order: Compare,
-// Replay, Ask (raised and glowing in the centre), Feed, You. Scout lives inside
-// Compare and search. Active route is Volt. Targets are at least 44px.
+// Mobile spine. The bar is centred on a raised, glowing Ask, with Home, Feed, and
+// You around it. Compare, Scout, and Replay are no longer cold tabs; they are reached
+// in context from answers and profiles. Targets are at least 44px.
 
 const LEFT = [
-  { href: "/compare", label: "Compare", Icon: CompareIcon },
-  { href: "/replay", label: "Replay", Icon: ReplayIcon },
+  { href: "/", label: "Home", Icon: HomeIcon, exact: true },
+  { href: "/community", label: "Feed", Icon: FeedIcon, exact: false },
 ];
-const RIGHT = [
-  { href: "/community", label: "Feed", Icon: FeedIcon },
-  { href: "/you", label: "You", Icon: YouIcon },
-];
+const RIGHT = [{ href: "/you", label: "You", Icon: YouIcon, exact: false }];
 
 export function BottomNav() {
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname.startsWith(href);
+  const isActive = (href: string, exact: boolean) =>
+    exact ? pathname === href : pathname.startsWith(href);
 
   return (
     <nav className="md-bottomnav" aria-label="Primary">
-      {LEFT.map(({ href, label, Icon }) => (
+      {LEFT.map(({ href, label, Icon, exact }) => (
         <Link
           key={href}
           href={href}
-          className={`md-tab-item ${isActive(href) ? "md-tab-item--active" : ""}`}
-          aria-current={isActive(href) ? "page" : undefined}
+          className={`md-tab-item ${isActive(href, exact) ? "md-tab-item--active" : ""}`}
+          aria-current={isActive(href, exact) ? "page" : undefined}
         >
           <span className="md-tab-glyph">
             <Icon size={22} />
@@ -52,12 +44,12 @@ export function BottomNav() {
         <span className="md-tab-raised-label">Ask</span>
       </div>
 
-      {RIGHT.map(({ href, label, Icon }) => (
+      {RIGHT.map(({ href, label, Icon, exact }) => (
         <Link
           key={href}
           href={href}
-          className={`md-tab-item ${isActive(href) ? "md-tab-item--active" : ""}`}
-          aria-current={isActive(href) ? "page" : undefined}
+          className={`md-tab-item ${isActive(href, exact) ? "md-tab-item--active" : ""}`}
+          aria-current={isActive(href, exact) ? "page" : undefined}
         >
           <span className="md-tab-glyph">
             <Icon size={22} />

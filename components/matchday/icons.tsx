@@ -18,6 +18,15 @@ function base(size: number) {
   };
 }
 
+export function HomeIcon({ size = 24 }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <path d="M4 11l8-7 8 7" />
+      <path d="M6 10v9h12v-9" />
+    </svg>
+  );
+}
+
 export function CompareIcon({ size = 24 }: IconProps) {
   return (
     <svg {...base(size)}>
