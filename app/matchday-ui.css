@@ -839,6 +839,11 @@
 }
 
 /* ---------------- Replay player ---------------- */
+@keyframes md-trail-dash {
+  to {
+    stroke-dashoffset: -4;
+  }
+}
 .md-replay-header {
   display: flex;
   align-items: center;
