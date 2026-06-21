@@ -23,6 +23,7 @@ import {
 import { WinProbabilityBar } from "@/components/matchday/dataviz/win-probability";
 import { PitchMap } from "@/components/matchday/dataviz/pitch-map";
 import { EntityLink } from "@/components/matchday/entity-link";
+import { EvidencePanel } from "@/components/matchday/evidence-panel";
 
 type ResolvedEntity = { name: string; kind: "player" | "team"; id: string };
 
@@ -139,6 +140,7 @@ export function AskClient({
   const isPrediction = usedPredictions(result);
   const winProb = result ? detectWinProbability(result) : null;
   const shotPoints = result ? detectPitchPoints(result) : null;
+  const evidence = result ? computeEvidence(result, entities, viz) : null;
   const hasProof =
     result !== null &&
     sql.length > 0 &&
@@ -241,6 +243,7 @@ export function AskClient({
         ) : null}
 
         {result !== null ? (
+          <>
           <section className="md-answer-grid">
             <div
               style={{
@@ -372,6 +375,16 @@ export function AskClient({
               ) : null}
             </div>
           </section>
+
+          {evidence ? (
+            <EvidencePanel
+              kind={evidence.kind}
+              id={evidence.id}
+              name={evidence.name}
+              initialType={evidence.type}
+            />
+          ) : null}
+          </>
         ) : null}
       </div>
     </main>
@@ -617,6 +630,44 @@ function detectPitchPoints(
     .filter((point): point is { x: number; y: number; kind: "event" | "goal" } => point !== null);
 
   return points.length > 0 ? points : null;
+}
+
+// When an answer is about events for a resolved entity in a competition with event
+// data, decide which entity and event type the evidence panel should query. Returns
+// null for answers that are not event based or have no resolvable entity, so the panel
+// only appears where the data supports it.
+function computeEvidence(
+  result: AskResponse,
+  entities: ResolvedEntity[],
+  viz: Viz | null,
+): { kind: "player" | "team"; id: string; name: string; type: "Shot" | "Pass" } | null {
+  const type = detectEventType(result);
+  if (type === null || entities.length === 0) {
+    return null;
+  }
+  const headline = viz?.headline?.entity;
+  const primary =
+    entities.find((entity) => entity.name === headline) ?? entities[0];
+  return { kind: primary.kind, id: primary.id, name: primary.name, type };
+}
+
+function detectEventType(result: AskResponse): "Shot" | "Pass" | null {
+  const sql = `${result.executedSql ?? ""} ${result.generatedSql ?? ""}`.toLowerCase();
+  if (!sql.includes("match_events")) {
+    return null;
+  }
+  if (/type\s*=\s*'pass'/.test(sql) || (/\bpass/.test(sql) && !/shot|goal/.test(sql))) {
+    return "Pass";
+  }
+  if (
+    /type\s*=\s*'shot'/.test(sql) ||
+    /shot_xg/.test(sql) ||
+    /outcome\s*=\s*'goal'/.test(sql) ||
+    /shot|goal/.test(sql)
+  ) {
+    return "Shot";
+  }
+  return null;
 }
 
 function isNumeric(value: unknown): boolean {
