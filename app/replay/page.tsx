@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { listReplayClips } from "@/lib/replay/queries";
+import { getAuthenticatedUser } from "@/lib/supabase/server-client";
+import { ShareToCommunity } from "@/app/community/share-to-community";
 import { ReplayViewer } from "./replay-viewer";
 
 export const runtime = "nodejs";
@@ -24,6 +26,7 @@ export default async function ReplayPage({
   const clips = await listReplayClips();
   const selected =
     clips.find((clip) => clip.clipId === requested) ?? clips[0] ?? null;
+  const signedIn = (await getAuthenticatedUser()) !== null;
 
   return (
     <main style={styles.main}>
@@ -36,6 +39,9 @@ export default async function ReplayPage({
         </Link>
         <Link href="/scout" style={styles.navLink}>
           Scout
+        </Link>
+        <Link href="/community" style={styles.navLink}>
+          Community
         </Link>
       </nav>
 
@@ -77,6 +83,12 @@ export default async function ReplayPage({
           ) : null}
 
           <ReplayViewer clipId={selected.clipId} />
+
+          <ShareToCommunity
+            kind="replay"
+            params={{ clip: selected.clipId }}
+            signedIn={signedIn}
+          />
         </>
       )}
     </main>

@@ -82,6 +82,9 @@ export function AskClient({ initialQuestion }: { initialQuestion: string }) {
         <Link href="/replay" style={styles.navLink}>
           Replay
         </Link>
+        <Link href="/community" style={styles.navLink}>
+          Community
+        </Link>
       </nav>
       <h1 style={styles.title}>Football AI Pro</h1>
       <p style={styles.subtitle}>

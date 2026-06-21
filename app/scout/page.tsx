@@ -12,6 +12,8 @@ import {
   listCompetitions,
   type LeaderboardRow,
 } from "@/lib/insights/queries";
+import { getAuthenticatedUser } from "@/lib/supabase/server-client";
+import { ShareToCommunity } from "@/app/community/share-to-community";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +55,7 @@ export default async function ScoutPage({
   }
 
   const hasShots = rows.some((row) => row.shots !== null);
+  const signedIn = (await getAuthenticatedUser()) !== null;
   const shareHref =
     competition && metric
       ? `/api/share/scout?competition=${encodeURIComponent(competition.id)}&type=${entityType}&metric=${metric}&min=${minShots}`
@@ -69,6 +72,9 @@ export default async function ScoutPage({
         </Link>
         <Link href="/replay" style={styles.navLink}>
           Replay
+        </Link>
+        <Link href="/community" style={styles.navLink}>
+          Community
         </Link>
       </nav>
 
@@ -183,6 +189,18 @@ export default async function ScoutPage({
               </a>
               , a downloadable image of this leaderboard.
             </p>
+          ) : null}
+          {rows.length > 0 ? (
+            <ShareToCommunity
+              kind="leaderboard"
+              params={{
+                competition: competition.id,
+                type: entityType,
+                metric,
+                min: minShots,
+              }}
+              signedIn={signedIn}
+            />
           ) : null}
         </section>
       ) : null}

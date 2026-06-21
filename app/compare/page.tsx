@@ -13,6 +13,8 @@ import {
   listEntities,
   type EntityMetrics,
 } from "@/lib/insights/queries";
+import { getAuthenticatedUser } from "@/lib/supabase/server-client";
+import { ShareToCommunity } from "@/app/community/share-to-community";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +54,8 @@ export default async function ComparePage({
       ? `/api/share/compare?competition=${encodeURIComponent(competition.id)}&type=${entityType}&a=${encodeURIComponent(aId)}&b=${encodeURIComponent(bId)}`
       : null;
 
+  const signedIn = (await getAuthenticatedUser()) !== null;
+
   return (
     <main style={styles.main}>
       <nav style={styles.nav}>
@@ -63,6 +67,9 @@ export default async function ComparePage({
         </Link>
         <Link href="/replay" style={styles.navLink}>
           Replay
+        </Link>
+        <Link href="/community" style={styles.navLink}>
+          Community
         </Link>
       </nav>
 
@@ -186,6 +193,11 @@ export default async function ComparePage({
               , a downloadable image of these numbers.
             </p>
           ) : null}
+          <ShareToCommunity
+            kind="comparison"
+            params={{ competition: competition.id, type: entityType, a: aId, b: bId }}
+            signedIn={signedIn}
+          />
         </section>
       ) : null}
     </main>
