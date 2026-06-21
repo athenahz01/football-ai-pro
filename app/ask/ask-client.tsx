@@ -20,6 +20,11 @@ import {
   Leaderboard,
   type LeaderboardItem,
 } from "@/components/matchday/dataviz/leaderboard";
+import { WinProbabilityBar } from "@/components/matchday/dataviz/win-probability";
+import { PitchMap } from "@/components/matchday/dataviz/pitch-map";
+import { EntityLink } from "@/components/matchday/entity-link";
+
+type ResolvedEntity = { name: string; kind: "player" | "team"; id: string };
 
 // The answer experience, rebuilt in MATCHDAY. The wiring is unchanged: it posts the
 // question to /api/ask and renders whatever the grounded pipeline returns. The design
@@ -71,6 +76,7 @@ export function AskClient({
   const [billingError, setBillingError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [entities, setEntities] = useState<ResolvedEntity[]>([]);
 
   async function ask(currentQuestion: string) {
     const trimmed = currentQuestion.trim();
@@ -81,6 +87,7 @@ export function AskClient({
     setLoading(true);
     setError(null);
     setResult(null);
+    setEntities([]);
 
     try {
       const response = await fetch("/api/ask", {
@@ -92,6 +99,8 @@ export function AskClient({
       setResult(data);
       if (!response.ok && data.error) {
         setError(data.error);
+      } else {
+        void resolveAnswerEntities(data).then(setEntities);
       }
     } catch {
       setError("The request failed. Check that the dev server is running.");
@@ -128,6 +137,8 @@ export function AskClient({
   const viz = result ? deriveViz(result) : null;
   const sql = result?.executedSql ?? result?.generatedSql ?? "";
   const isPrediction = usedPredictions(result);
+  const winProb = result ? detectWinProbability(result) : null;
+  const shotPoints = result ? detectPitchPoints(result) : null;
   const hasProof =
     result !== null &&
     sql.length > 0 &&
@@ -263,12 +274,34 @@ export function AskClient({
                 </PanelCard>
               ) : null}
 
-              {viz?.headline ? (
+              {winProb ? (
+                <PanelCard>
+                  <WinProbabilityBar
+                    home={winProb.home}
+                    draw={winProb.draw}
+                    away={winProb.away}
+                  />
+                </PanelCard>
+              ) : viz?.headline ? (
                 <HeadlineStat
                   entity={viz.headline.entity}
                   value={viz.headline.value}
                   context={viz.headline.context}
                 />
+              ) : null}
+
+              {entities.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+                  {entities.map((entity) => (
+                    <EntityLink
+                      key={`${entity.kind}-${entity.id}`}
+                      kind={entity.kind}
+                      id={entity.id}
+                      name={entity.name}
+                      variant="chip"
+                    />
+                  ))}
+                </div>
               ) : null}
 
               {result.answer ? (
@@ -280,7 +313,21 @@ export function AskClient({
                 </p>
               ) : null}
 
-              {viz && viz.items.length > 1 ? (
+              {shotPoints && shotPoints.length > 0 ? (
+                <PanelCard>
+                  <span className="md-overline" style={{ color: "var(--md-text-lo)", display: "block", marginBottom: "var(--space-3)" }}>
+                    Shot map
+                  </span>
+                  <PitchMap
+                    title="Answer shot map"
+                    events={shotPoints}
+                  />
+                  <p className="md-small" style={{ color: "var(--md-text-lo)", marginTop: "var(--space-3)" }}>
+                    From the real event coordinates in the result. Magenta marks a
+                    goal. Attacking left to right.
+                  </p>
+                </PanelCard>
+              ) : viz && viz.items.length > 1 ? (
                 <PanelCard>
                   <span
                     className="md-overline"
@@ -469,6 +516,107 @@ function deriveViz(result: AskResponse): Viz | null {
   };
 
   return { headline, items, contextLabel };
+}
+
+// Collect the entity names in the answer rows and resolve them to profiles, so they
+// can render as tappable chips. Only exact matches resolve; the rest stay plain text.
+async function resolveAnswerEntities(
+  result: AskResponse,
+): Promise<ResolvedEntity[]> {
+  const columns = result.columns ?? [];
+  const rows = result.rows ?? [];
+  if (columns.length === 0 || rows.length === 0) {
+    return [];
+  }
+  const labelCol =
+    columns.find((column) => !isNumeric(rows[0][column])) ?? columns[0];
+  const names = Array.from(
+    new Set(
+      rows
+        .map((row) => row[labelCol])
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 25);
+  if (names.length === 0) {
+    return [];
+  }
+
+  try {
+    const response = await fetch("/api/entity/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ names }),
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = (await response.json()) as { entities?: ResolvedEntity[] };
+    return data.entities ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// A prediction row carrying home, draw, and away probabilities becomes the win
+// probability bar. Best effort on the column names; if the shape is not present, the
+// answer falls back to its other visual.
+function detectWinProbability(
+  result: AskResponse,
+): { home: number; draw: number; away: number } | null {
+  if (!usedPredictions(result)) {
+    return null;
+  }
+  const columns = result.columns ?? [];
+  const row = (result.rows ?? [])[0];
+  if (row === undefined) {
+    return null;
+  }
+  const find = (re: RegExp) =>
+    columns.find((column) => re.test(column) && isNumeric(row[column]));
+  const homeCol = find(/home.*(win|prob)|prob.*home/i) ?? find(/^home/i);
+  const drawCol = find(/draw/i);
+  const awayCol = find(/away.*(win|prob)|prob.*away/i) ?? find(/^away/i);
+  if (!homeCol || !drawCol || !awayCol) {
+    return null;
+  }
+  const home = toNumber(row[homeCol]) ?? 0;
+  const draw = toNumber(row[drawCol]) ?? 0;
+  const away = toNumber(row[awayCol]) ?? 0;
+  if (home + draw + away <= 0) {
+    return null;
+  }
+  return { home, draw, away };
+}
+
+// A result carrying event coordinates becomes a shot map. StatsBomb pitch space is
+// 120 by 80; only rows with both coordinates are plotted.
+function detectPitchPoints(
+  result: AskResponse,
+): { x: number; y: number; kind: "event" | "goal" }[] | null {
+  const columns = result.columns ?? [];
+  const rows = result.rows ?? [];
+  const xCol = columns.find((column) => /(^|_)(location_)?x$/i.test(column) || /location_x/i.test(column));
+  const yCol = columns.find((column) => /(^|_)(location_)?y$/i.test(column) || /location_y/i.test(column));
+  if (!xCol || !yCol) {
+    return null;
+  }
+  const outcomeCol = columns.find((column) => /outcome|result/i.test(column));
+  const points = rows
+    .map((row) => {
+      const x = toNumber(row[xCol]);
+      const y = toNumber(row[yCol]);
+      if (x === null || y === null) {
+        return null;
+      }
+      const goal =
+        outcomeCol !== undefined && String(row[outcomeCol] ?? "").toLowerCase() === "goal";
+      return { x, y, kind: goal ? ("goal" as const) : ("event" as const) };
+    })
+    .filter((point): point is { x: number; y: number; kind: "event" | "goal" } => point !== null);
+
+  return points.length > 0 ? points : null;
 }
 
 function isNumeric(value: unknown): boolean {

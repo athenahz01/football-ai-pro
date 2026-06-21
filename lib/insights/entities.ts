@@ -184,6 +184,42 @@ export async function cardsForFollows(
   return cards;
 }
 
+export type ResolvedEntity = { name: string; kind: EntityKind; id: string };
+
+// Resolve answer entity names to their profile, so a name in an answer can become a
+// tappable chip. Exact name match only, players preferred, to avoid linking to the
+// wrong entity. A name that does not resolve is left as plain text by the caller.
+export async function resolveEntities(
+  names: string[],
+): Promise<ResolvedEntity[]> {
+  const unique = Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+  if (unique.length === 0) {
+    return [];
+  }
+
+  const rows = await runReadOnly(
+    `
+      select 'player' as kind, player_id as id, name from players where name = any($1)
+      union all
+      select 'team' as kind, team_id as id, name from teams where name = any($1)
+    `,
+    [unique],
+    unique.length * 2,
+  );
+
+  const byName = new Map<string, ResolvedEntity>();
+  for (const row of rows) {
+    const name = String(row.name);
+    const kind = String(row.kind) as EntityKind;
+    // Players are inserted first by the union, so a player match wins on collision.
+    if (!byName.has(name)) {
+      byName.set(name, { name, kind, id: String(row.id) });
+    }
+  }
+
+  return Array.from(byName.values());
+}
+
 export async function getPlayerProfile(
   playerId: string,
 ): Promise<PlayerProfile | null> {
