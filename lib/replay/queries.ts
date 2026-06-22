@@ -14,6 +14,50 @@ const TIMEOUT_MS = 5_000;
 // One clip is a few hundred points today. This cap is generous headroom for a
 // longer clip while still bounding the read.
 const POINT_LIMIT = 20_000;
+const GOAL_LIMIT = 120;
+const GOAL_SEQUENCE_LIMIT = 300;
+
+export type GoalReplaySummary = {
+  goalId: string;
+  matchId: string;
+  scorer: string;
+  teamName: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  stage: string | null;
+  minute: number;
+  second: number;
+  period: number;
+  shotType: string | null;
+  playPattern: string | null;
+  xtGained: number | null;
+  pathEventCount: number;
+};
+
+export type GoalReplayEvent = {
+  eventId: string;
+  sequence: number;
+  period: number;
+  minute: number;
+  second: number;
+  type: string;
+  playerName: string | null;
+  teamName: string | null;
+  x: number;
+  y: number;
+  endX: number | null;
+  endY: number | null;
+  xtValue: number | null;
+  isGoal: boolean;
+};
+
+export type GoalReplayData = {
+  goal: GoalReplaySummary;
+  events: GoalReplayEvent[];
+  source: "statsbomb";
+  coordinateSystem: "statsbomb_120x80";
+  freezeFrameAvailable: false;
+};
 
 export type ReplayClip = {
   clipId: string;
@@ -50,6 +94,202 @@ export type ReplayData = {
   frameCount: number;
 };
 
+export async function listGoalReplays(
+  limit = GOAL_LIMIT,
+): Promise<GoalReplaySummary[]> {
+  const rows = await runReadOnly(
+    `
+      select
+        me.event_id,
+        me.match_id,
+        me.period,
+        me.minute,
+        me.second,
+        coalesce(p.display_name, me.player_name) as scorer,
+        me.team_name,
+        ht.name as home_team_name,
+        at.name as away_team_name,
+        m.stage,
+        me.shot_type,
+        me.play_pattern,
+        null::numeric as xt_gained,
+        0::integer as path_event_count
+      from match_events me
+      join matches m on m.match_id = me.match_id
+      join competitions c on c.competition_id = m.competition_id
+      join teams ht on ht.team_id = m.home_team_id
+      join teams at on at.team_id = m.away_team_id
+      left join players p on p.player_id = me.player_id
+      where c.name = 'FIFA World Cup'
+        and c.season_name = '2022'
+        and c.source = 'statsbomb'
+        and me.source = 'statsbomb'
+        and me.period <= 4
+        and me.type = 'Shot'
+        and me.outcome = 'Goal'
+        and me.location_x is not null
+        and me.location_y is not null
+      order by
+        case
+          when m.stage = 'Final'
+            and me.shot_type = 'open_play'
+          then 0
+          else 1
+        end,
+        case when m.stage = 'Final' then 0 else 1 end,
+        m.match_date desc,
+        me.minute,
+        me.second
+      limit $1
+    `,
+    [limit],
+    limit,
+  );
+
+  return rows.map(toGoalReplaySummary);
+}
+
+export async function getGoalReplayData(
+  goalId: string,
+): Promise<GoalReplayData | null> {
+  const rows = await runReadOnly(
+    `
+      with goal as (
+        select
+          me.event_id,
+          me.match_id,
+          me.sequence,
+          me.period,
+          me.minute,
+          me.second,
+          me.team_id,
+          me.team_name,
+          coalesce(p.display_name, me.player_name) as scorer,
+          me.possession_team_id,
+          me.shot_type,
+          me.play_pattern,
+          m.stage,
+          ht.name as home_team_name,
+          at.name as away_team_name
+        from match_events me
+        join matches m on m.match_id = me.match_id
+        join competitions c on c.competition_id = m.competition_id
+        join teams ht on ht.team_id = m.home_team_id
+        join teams at on at.team_id = m.away_team_id
+        left join players p on p.player_id = me.player_id
+        where me.event_id = $1
+          and c.name = 'FIFA World Cup'
+          and c.season_name = '2022'
+          and c.source = 'statsbomb'
+          and me.source = 'statsbomb'
+          and me.type = 'Shot'
+          and me.outcome = 'Goal'
+          and me.location_x is not null
+          and me.location_y is not null
+      ),
+      scanned as (
+        select
+          me.*,
+          sum(
+            case
+              when me.possession_team_id is distinct from g.possession_team_id then 1
+              else 0
+            end
+          ) over (
+            order by me.sequence desc
+            rows between unbounded preceding and current row
+          ) as possession_break
+        from match_events me
+        cross join goal g
+        where me.match_id = g.match_id
+          and me.sequence <= g.sequence
+      ),
+      possession as (
+        select s.*
+        from scanned s
+        cross join goal g
+        where s.possession_break = 0
+          and s.team_id = g.team_id
+          and s.location_x is not null
+          and s.location_y is not null
+        order by s.sequence
+        limit $2
+      ),
+      xt as (
+        select sum(av.xt_value) as xt_gained
+        from possession p
+        left join spadl_actions sa on sa.source_event_id = p.event_id
+        left join action_values av on av.action_id = sa.action_id
+      )
+      select
+        g.event_id as goal_id,
+        g.match_id as goal_match_id,
+        g.period as goal_period,
+        g.minute as goal_minute,
+        g.second as goal_second,
+        g.scorer,
+        g.team_name as goal_team_name,
+        g.home_team_name,
+        g.away_team_name,
+        g.stage,
+        g.shot_type,
+        g.play_pattern,
+        xt.xt_gained,
+        count(*) over () as path_event_count,
+        p.event_id,
+        p.sequence,
+        p.period,
+        p.minute,
+        p.second,
+        p.type,
+        p.player_name,
+        p.team_name,
+        p.location_x,
+        p.location_y,
+        p.end_location_x,
+        p.end_location_y,
+        av.xt_value,
+        p.event_id = g.event_id as is_goal
+      from goal g
+      join possession p on true
+      cross join xt
+      left join spadl_actions sa on sa.source_event_id = p.event_id
+      left join action_values av on av.action_id = sa.action_id
+      order by p.sequence
+    `,
+    [goalId, GOAL_SEQUENCE_LIMIT],
+    GOAL_SEQUENCE_LIMIT,
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const first = rows[0];
+  return {
+    goal: toGoalReplaySummary({
+      event_id: first.goal_id,
+      match_id: first.goal_match_id,
+      period: first.goal_period,
+      minute: first.goal_minute,
+      second: first.goal_second,
+      scorer: first.scorer,
+      team_name: first.goal_team_name,
+      home_team_name: first.home_team_name,
+      away_team_name: first.away_team_name,
+      stage: first.stage,
+      shot_type: first.shot_type,
+      play_pattern: first.play_pattern,
+      xt_gained: first.xt_gained,
+      path_event_count: first.path_event_count,
+    }),
+    events: rows.map(toGoalReplayEvent),
+    source: "statsbomb",
+    coordinateSystem: "statsbomb_120x80",
+    freezeFrameAvailable: false,
+  };
+}
+
 export async function listReplayClips(): Promise<ReplayClip[]> {
   const rows = await runReadOnly(
     `
@@ -79,7 +319,9 @@ export async function listReplayClips(): Promise<ReplayClip[]> {
   return rows.map(toReplayClip);
 }
 
-export async function getReplayData(clipId: string): Promise<ReplayData | null> {
+export async function getReplayData(
+  clipId: string,
+): Promise<ReplayData | null> {
   const clipRows = await runReadOnly(
     `
       select
@@ -190,6 +432,44 @@ function toReplayClip(row: Record<string, SqlValue>): ReplayClip {
     fps: toNumber(row.fps),
     width: toNumber(row.width),
     height: toNumber(row.height),
+  };
+}
+
+function toGoalReplaySummary(row: Record<string, SqlValue>): GoalReplaySummary {
+  return {
+    goalId: String(row.event_id),
+    matchId: String(row.match_id),
+    scorer: String(row.scorer ?? "Unknown scorer"),
+    teamName: String(row.team_name ?? "Unknown team"),
+    homeTeamName: String(row.home_team_name ?? "Home"),
+    awayTeamName: String(row.away_team_name ?? "Away"),
+    stage: row.stage === null ? null : String(row.stage),
+    minute: toNumber(row.minute) ?? 0,
+    second: toNumber(row.second) ?? 0,
+    period: toNumber(row.period) ?? 0,
+    shotType: row.shot_type === null ? null : String(row.shot_type),
+    playPattern: row.play_pattern === null ? null : String(row.play_pattern),
+    xtGained: toNumber(row.xt_gained),
+    pathEventCount: toNumber(row.path_event_count) ?? 0,
+  };
+}
+
+function toGoalReplayEvent(row: Record<string, SqlValue>): GoalReplayEvent {
+  return {
+    eventId: String(row.event_id),
+    sequence: toNumber(row.sequence) ?? 0,
+    period: toNumber(row.period) ?? 0,
+    minute: toNumber(row.minute) ?? 0,
+    second: toNumber(row.second) ?? 0,
+    type: String(row.type),
+    playerName: row.player_name === null ? null : String(row.player_name),
+    teamName: row.team_name === null ? null : String(row.team_name),
+    x: toNumber(row.location_x) ?? 0,
+    y: toNumber(row.location_y) ?? 0,
+    endX: toNumber(row.end_location_x),
+    endY: toNumber(row.end_location_y),
+    xtValue: toNumber(row.xt_value),
+    isGoal: row.is_goal === true || row.is_goal === "true",
   };
 }
 
