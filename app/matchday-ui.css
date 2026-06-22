@@ -869,6 +869,16 @@
   background: var(--md-sunken);
   box-shadow: var(--glow);
 }
+.md-goal-stage {
+  background: #0a0b0d;
+}
+.md-replay-picker {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
 .md-hud {
   position: absolute;
   top: var(--space-3);
