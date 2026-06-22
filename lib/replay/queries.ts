@@ -51,12 +51,21 @@ export type GoalReplayEvent = {
   isGoal: boolean;
 };
 
+export type GoalFreezeFramePlayer = {
+  x: number;
+  y: number;
+  teammate: boolean;
+  position: string | null;
+  actor: boolean | null;
+};
+
 export type GoalReplayData = {
   goal: GoalReplaySummary;
   events: GoalReplayEvent[];
+  freezeFrame: GoalFreezeFramePlayer[];
   source: "statsbomb";
   coordinateSystem: "statsbomb_120x80";
-  freezeFrameAvailable: false;
+  freezeFrameAvailable: boolean;
 };
 
 export type ReplayClip = {
@@ -265,6 +274,7 @@ export async function getGoalReplayData(
     return null;
   }
 
+  const freezeFrame = await getGoalFreezeFrame(goalId);
   const first = rows[0];
   return {
     goal: toGoalReplaySummary({
@@ -284,10 +294,33 @@ export async function getGoalReplayData(
       path_event_count: first.path_event_count,
     }),
     events: rows.map(toGoalReplayEvent),
+    freezeFrame,
     source: "statsbomb",
     coordinateSystem: "statsbomb_120x80",
-    freezeFrameAvailable: false,
+    freezeFrameAvailable: freezeFrame.length > 0,
   };
+}
+
+export async function getGoalFreezeFrame(
+  goalEventId: string,
+): Promise<GoalFreezeFramePlayer[]> {
+  const rows = await runReadOnly(
+    `
+      select
+        location_x,
+        location_y,
+        teammate,
+        position,
+        actor
+      from shot_freeze_frames
+      where event_id = $1
+      order by frame_index
+    `,
+    [goalEventId],
+    60,
+  );
+
+  return rows.map(toGoalFreezeFramePlayer);
 }
 
 export async function listReplayClips(): Promise<ReplayClip[]> {
@@ -470,6 +503,19 @@ function toGoalReplayEvent(row: Record<string, SqlValue>): GoalReplayEvent {
     endY: toNumber(row.end_location_y),
     xtValue: toNumber(row.xt_value),
     isGoal: row.is_goal === true || row.is_goal === "true",
+  };
+}
+
+function toGoalFreezeFramePlayer(
+  row: Record<string, SqlValue>,
+): GoalFreezeFramePlayer {
+  return {
+    x: toNumber(row.location_x) ?? 0,
+    y: toNumber(row.location_y) ?? 0,
+    teammate: row.teammate === true || row.teammate === "true",
+    position: row.position === null ? null : String(row.position),
+    actor:
+      row.actor === null ? null : row.actor === true || row.actor === "true",
   };
 }
 
