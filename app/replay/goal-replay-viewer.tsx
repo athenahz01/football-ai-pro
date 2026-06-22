@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/matchday/badge";
 import type {
+  GoalFreezeFramePlayer,
   GoalReplayData,
   GoalReplayEvent,
   GoalReplaySummary,
@@ -214,6 +215,7 @@ export function GoalReplayViewer({ goalId }: { goalId: string }) {
     .slice(Math.max(0, frame - TRAIL_POINTS), frame + 1)
     .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
     .join(" ");
+  const freezeFrameVisible = data.freezeFrameAvailable && currentEvent.isGoal;
 
   return (
     <section>
@@ -316,6 +318,16 @@ export function GoalReplayViewer({ goalId }: { goalId: string }) {
                 opacity={0.92}
               />
             ) : null}
+
+            {freezeFrameVisible
+              ? data.freezeFrame.map((player, index) => (
+                  <FreezeFrameMarker
+                    key={`${player.x}-${player.y}-${index}`}
+                    player={player}
+                    index={index}
+                  />
+                ))
+              : null}
 
             {data.events.map((event, index) => (
               <circle
@@ -426,6 +438,24 @@ export function GoalReplayViewer({ goalId }: { goalId: string }) {
           <span className="md-legend-dot" style={{ background: "#f2f4f5" }} />{" "}
           scorer touch
         </span>
+        {data.freezeFrameAvailable ? (
+          <>
+            <span>
+              <span
+                className="md-legend-dot"
+                style={{ background: "#f2f4f5" }}
+              />{" "}
+              freeze-frame teammates
+            </span>
+            <span>
+              <span
+                className="md-legend-dot"
+                style={{ background: "rgba(255, 106, 122, 0.62)" }}
+              />{" "}
+              freeze-frame opponents
+            </span>
+          </>
+        ) : null}
       </div>
 
       {showWork ? (
@@ -450,6 +480,9 @@ export function GoalReplayViewer({ goalId }: { goalId: string }) {
             This replay uses {data.events.length} real event rows. It is a
             reconstruction on a stylized pitch, not broadcast footage and not
             scanned player likenesses.
+            {data.freezeFrameAvailable
+              ? ` It also draws ${data.freezeFrame.length} shot freeze-frame player positions for the instant of the shot.`
+              : ""}
           </p>
           <p className="md-small" style={{ marginTop: "var(--space-2)" }}>
             <a
@@ -466,10 +499,57 @@ export function GoalReplayViewer({ goalId }: { goalId: string }) {
         className="md-small"
         style={{ color: "var(--md-text-lo)", marginTop: "var(--space-4)" }}
       >
-        Opponent positions are not shown because StatsBomb freeze-frame data is
-        not loaded yet. A later freeze-frame load can add surrounding players.
+        {data.freezeFrameAvailable
+          ? "Teammates and opponents appear only at the moment of the shot from StatsBomb freeze-frame rows. They are frozen shot context, not player tracking through the build-up."
+          : "Opponent positions are not shown because this goal has no loaded StatsBomb freeze-frame rows. No surrounding players are invented."}
       </p>
     </section>
+  );
+}
+
+function FreezeFrameMarker({
+  player,
+  index,
+}: {
+  player: GoalFreezeFramePlayer;
+  index: number;
+}) {
+  const goalkeeper = isGoalkeeper(player.position);
+  const fill = player.teammate ? "#f2f4f5" : "rgba(255, 106, 122, 0.62)";
+  const stroke = player.teammate ? "#0a0b0d" : "var(--md-down)";
+  const label = `${player.teammate ? "Teammate" : "Opponent"} ${
+    player.position ?? "player"
+  } at shot freeze frame ${index + 1}`;
+
+  if (goalkeeper) {
+    return (
+      <rect
+        x={player.x - 1.35}
+        y={player.y - 1.35}
+        width={2.7}
+        height={2.7}
+        rx={0.35}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={0.45}
+        transform={`rotate(45 ${player.x} ${player.y})`}
+        opacity={0.92}
+        aria-label={label}
+      />
+    );
+  }
+
+  return (
+    <circle
+      cx={player.x}
+      cy={player.y}
+      r={1.25}
+      fill={fill}
+      stroke={stroke}
+      strokeWidth={0.42}
+      opacity={0.88}
+      aria-label={label}
+    />
   );
 }
 
@@ -604,6 +684,10 @@ function teamCode(name: string): string {
       .slice(0, 3)
       .toUpperCase()
   );
+}
+
+function isGoalkeeper(position: string | null): boolean {
+  return position !== null && /goalkeeper/i.test(position);
 }
 
 function formatSigned(value: number): string {
