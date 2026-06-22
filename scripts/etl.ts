@@ -15,7 +15,8 @@ const BATCH_SIZE = 1_000;
 // API-Football data is written with an 'af:' id prefix and source 'api_football',
 // so a prefixed id can never collide with a bare StatsBomb number. This is the
 // only place the prefix and source are decided; every row mapper applies them.
-const SOURCE = config.dataProvider === "api_football" ? "api_football" : "statsbomb";
+const SOURCE =
+  config.dataProvider === "api_football" ? "api_football" : "statsbomb";
 const ID_PREFIX = config.dataProvider === "api_football" ? "af:" : "";
 
 function entityId(id: string): string {
@@ -33,6 +34,7 @@ const TABLES = [
   "player_teams",
   "matches",
   "match_events",
+  "shot_freeze_frames",
 ] as const;
 
 type TableName = (typeof TABLES)[number];
@@ -121,6 +123,17 @@ type MatchEventRow = {
   source: string;
 };
 
+type ShotFreezeFrameRow = {
+  event_id: string;
+  frame_index: number;
+  location_x: number;
+  location_y: number;
+  teammate: boolean;
+  position: string | null;
+  actor: boolean | null;
+  source: string;
+};
+
 let supabaseServiceClientPromise:
   | Promise<typeof import("../lib/supabase/server").supabaseServiceClient>
   | undefined;
@@ -191,6 +204,11 @@ async function runEtl(): Promise<RowCounts> {
     const events = await provider.getMatchEvents(match.id);
     await loadEventDependencies(events);
     await upsertRows("match_events", events.map(toMatchEventRow), "event_id");
+    await upsertRows(
+      "shot_freeze_frames",
+      events.flatMap(toShotFreezeFrameRows),
+      "event_id,frame_index",
+    );
   }
 
   const counts = await getRowCounts();
@@ -513,6 +531,19 @@ function toMatchEventRow(event: MatchEvent): MatchEventRow {
     shot_type: nullable(event.shotType),
     source: SOURCE,
   };
+}
+
+function toShotFreezeFrameRows(event: MatchEvent): ShotFreezeFrameRow[] {
+  return (event.freezeFrame ?? []).map((player, index) => ({
+    event_id: entityId(event.id),
+    frame_index: index,
+    location_x: player.location.x,
+    location_y: player.location.y,
+    teammate: player.teammate,
+    position: nullable(player.position),
+    actor: player.actor ?? null,
+    source: SOURCE,
+  }));
 }
 
 function mergePlayer(players: Map<string, PlayerRow>, player: PlayerRow): void {

@@ -41,6 +41,7 @@ close-out.
 | 202606190009_cv_metrics | broadcast_cv source: cv_clips and cv_track_metrics | yes |
 | 202606190010_cv_track_points | Per frame track positions for the 3D replay | yes |
 | 202606190011_shared_posts | Community feed: shared_posts storing render parameters, not numbers | yes |
+| 202606220001_shot_freeze_frames | Shot freeze-frame player positions for goal replay context | yes |
 
 ## Notes
 

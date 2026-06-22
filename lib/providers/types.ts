@@ -42,6 +42,13 @@ export type PitchLocation = {
   y: number;
 };
 
+export type ShotFreezeFramePlayer = {
+  location: PitchLocation;
+  teammate: boolean;
+  position?: string;
+  actor?: boolean;
+};
+
 export type Team = {
   id: string;
   name: string;
@@ -113,6 +120,7 @@ export type MatchEvent = {
   isCross?: boolean;
   passType?: PassType;
   shotType?: ShotType;
+  freezeFrame?: ShotFreezeFramePlayer[];
 };
 
 export interface StatsProvider {

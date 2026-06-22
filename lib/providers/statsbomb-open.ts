@@ -113,6 +113,14 @@ type StatsBombPassDetail = StatsBombEventDetail & {
 type StatsBombShotDetail = StatsBombEventDetail & {
   body_part?: StatsBombNamedEntity;
   type?: StatsBombNamedEntity;
+  freeze_frame?: StatsBombFreezeFramePlayer[];
+};
+
+type StatsBombFreezeFramePlayer = {
+  location?: number[];
+  teammate?: boolean;
+  position?: StatsBombNamedEntity;
+  actor?: boolean;
 };
 
 type StatsBombEvent = {
@@ -372,7 +380,34 @@ function mapEvent(matchId: string, event: StatsBombEvent): MatchEvent {
     isCross: event.pass === undefined ? undefined : (event.pass.cross ?? false),
     passType: mapPassType(event.pass),
     shotType: mapShotType(event.shot),
+    freezeFrame: mapFreezeFrame(event.shot?.freeze_frame),
   };
+}
+
+function mapFreezeFrame(
+  players: StatsBombFreezeFramePlayer[] | undefined,
+): MatchEvent["freezeFrame"] {
+  if (players === undefined) {
+    return undefined;
+  }
+
+  const mapped = players
+    .map((player) => {
+      const location = mapLocation(player.location);
+      if (location === undefined || player.teammate === undefined) {
+        return null;
+      }
+
+      return {
+        location,
+        teammate: player.teammate,
+        position: player.position?.name,
+        actor: player.actor,
+      };
+    })
+    .filter((player): player is NonNullable<typeof player> => player !== null);
+
+  return mapped.length > 0 ? mapped : undefined;
 }
 
 function getEventDetail(
